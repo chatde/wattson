@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Wattson</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #c8d2e6;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(100, 120, 160, 0.2);
+  }
+  .eye {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #3498db 30%, #0a0a1a 70%);
+    border: 2px solid #3498db;
+    box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  .eye.paused { background: radial-gradient(circle, #e67e22 30%, #0a0a1a 70%); border-color: #e67e22; box-shadow: 0 0 15px rgba(230, 126, 34, 0.5); }
+  .eye.offline { background: radial-gradient(circle, #555 30%, #0a0a1a 70%); border-color: #555; box-shadow: none; animation: none; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .title { font-size: 20px; font-weight: bold; color: #e0e8f0; }
+  .subtitle { font-size: 11px; color: rgba(160, 175, 200, 0.5); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: rgba(20, 25, 45, 0.8);
+    border: 1px solid rgba(100, 120, 160, 0.15);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .stat-label { font-size: 9px; color: rgba(140, 155, 180, 0.6); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-size: 18px; font-weight: bold; color: #e0e8f0; margin-top: 2px; }
+  .stat-value.hot { color: #e74c3c; }
+  .stat-value.warm { color: #e67e22; }
+  .stat-value.cool { color: #2ecc71; }
+  .stat-value.low { color: #e74c3c; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .tab {
+    padding: 6px 14px;
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.2);
+    border-radius: 16px;
+    font-size: 12px;
+    color: #3498db;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .tab.active { background: rgba(52, 152, 219, 0.25); border-color: #3498db; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Thoughts panel */
+  .thought-stream {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .thought {
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    background: rgba(20, 25, 45, 0.6);
+    border-left: 3px solid rgba(52, 152, 219, 0.4);
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .thought .category {
+    font-size: 9px;
+    color: rgba(52, 152, 219, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+  .thought .time {
+    font-size: 10px;
+    color: rgba(140, 155, 180, 0.4);
+    float: right;
+  }
+
+  /* Chat panel */
+  .chat-messages {
+    max-height: 50vh;
+    overflow-y: auto;
+    margin-bottom: 8px;
+  }
+  .msg {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 6px;
+    word-wrap: break-word;
+  }
+  .msg-user {
+    align-self: flex-end;
+    margin-left: auto;
+    background: #2563eb;
+    color: white;
+    border-bottom-right-radius: 4px;
+    text-align: right;
+  }
+  .msg-wattson {
+    background: rgba(30, 35, 55, 0.9);
+    border: 1px solid rgba(100, 100, 140, 0.2);
+    border-bottom-left-radius: 4px;
+  }
+  .msg-system {
+    text-align: center;
+    color: rgba(160, 175, 200, 0.5);
+    font-size: 11px;
+    margin: 8px 0;
+  }
+  .chat-input-area {
+    display: flex;
+    gap: 8px;
+  }
+  .chat-input {
+    flex: 1;
+    background: rgba(25, 30, 50, 0.9);
+    border: 1px solid rgba(100, 100, 140, 0.3);
+    border-radius: 20px;
+    padding: 10px 16px;
+    color: #e0e8f0;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  .chat-input:focus { border-color: rgba(52, 152, 219, 0.5); }
+  .send-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: #2563eb;
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .send-btn:disabled { opacity: 0.3; }
+  .typing { color: rgba(52, 152, 219, 0.6); font-style: italic; font-size: 12px; padding: 4px 0; }
+
+  .footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 10px;
+    color: rgba(140, 155, 180, 0.3);
+  }
+  .footer a { color: rgba(52, 152, 219, 0.5); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="eye" id="eye"></div>
+  <div>
+    <div class="title">Wattson</div>
+    <div class="subtitle" id="status">Connecting...</div>
+  </div>
+</div>
+
+<div class="stats" id="stats">
+  <div class="stat"><div class="stat-label">Temp</div><div class="stat-value" id="s-temp">--</div></div>
+  <div class="stat"><div class="stat-label">Battery</div><div class="stat-value" id="s-battery">--</div></div>
+  <div class="stat"><div class="stat-label">RAM Free</div><div class="stat-value" id="s-ram">--</div></div>
+  <div class="stat"><div class="stat-label">Cycles</div><div class="stat-value" id="s-cycles">--</div></div>
+  <div class="stat"><div class="stat-label">Thermal</div><div class="stat-value" id="s-thermal">--</div></div>
+  <div class="stat"><div class="stat-label">Uptime</div><div class="stat-value" id="s-uptime">--</div></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('thoughts')">Thoughts</button>
+  <button class="tab" onclick="switchTab('chat')">Chat</button>
+</div>
+
+<div class="panel active" id="panel-thoughts">
+  <div class="thought-stream" id="thought-stream">
+    <div class="msg-system">Waiting for Wattson's thoughts...</div>
+  </div>
+</div>
+
+<div class="panel" id="panel-chat">
+  <div class="chat-messages" id="chat-messages">
+    <div class="msg-system">Talk to Wattson. Type a message below.</div>
+  </div>
+  <div id="typing-indicator"></div>
+  <div class="chat-input-area">
+    <input class="chat-input" id="chat-input" placeholder="Talk to Wattson..."
+      onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="send-btn" id="send-btn" onclick="sendChat()">&#9654;</button>
+  </div>
+</div>
+
+<div class="footer">
+  <a href="https://github.com/chatde/wattson">Wattson</a> — Autonomous Phone AI
+</div>
+
+<script>
+const eye = document.getElementById('eye');
+const statusEl = document.getElementById('status');
+let currentTab = 'thoughts';
+let chatHistory = [];
+let sending = false;
+let lastThoughtCount = 0;
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'chat') document.getElementById('chat-input').focus();
+}
+
+// ─── Poll State ──────────────────────────────────────────────────────────────
+async function pollState() {
+  try {
+    const res = await fetch('/api/state');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+
+    // Update stats
+    const tempEl = document.getElementById('s-temp');
+    tempEl.textContent = data.temp ? data.temp + 'C' : '--';
+    tempEl.className = 'stat-value ' + (data.temp > 60 ? 'hot' : data.temp > 45 ? 'warm' : 'cool');
+
+    const batEl = document.getElementById('s-battery');
+    batEl.textContent = data.battery ? data.battery + '%' : '--';
+    batEl.className = 'stat-value ' + (data.battery < 20 ? 'low' : 'cool');
+
+    document.getElementById('s-ram').textContent = data.ramFree ? data.ramFree + 'MB' : '--';
+    document.getElementById('s-cycles').textContent = data.cycleCount || '--';
+    document.getElementById('s-thermal').textContent = data.thermalTier || '--';
+
+    if (data.uptime) {
+      const h = Math.floor(data.uptime / 3600);
+      const m = Math.floor((data.uptime % 3600) / 60);
+      document.getElementById('s-uptime').textContent = h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+    }
+
+    // Update eye
+    eye.className = 'eye' + (data.paused ? ' paused' : '');
+    statusEl.textContent = data.paused ? 'Cooling down...' :
+      data.category ? data.category.replace(/_/g, ' ').toLowerCase() : 'Online';
+
+    // Update thoughts
+    if (data.thoughts && data.thoughts.length > 0 && data.thoughts.length !== lastThoughtCount) {
+      lastThoughtCount = data.thoughts.length;
+      renderThoughts(data.thoughts);
+    }
+  } catch {
+    eye.className = 'eye offline';
+    statusEl.textContent = 'Disconnected';
+  }
+}
+
+function renderThoughts(thoughts) {
+  const el = document.getElementById('thought-stream');
+  el.innerHTML = thoughts.map(t => {
+    const time = new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const cat = t.category || '';
+    return `<div class="thought">
+      <span class="time">${time}</span>
+      <div class="category">${cat.replace(/_/g, ' ')}</div>
+      ${escapeHtml(t.text)}
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─── Chat ────────────────────────────────────────────────────────────────────
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || sending) return;
+
+  sending = true;
+  document.getElementById('send-btn').disabled = true;
+  input.value = '';
+
+  addChatMsg('user', text);
+  chatHistory.push({ role: 'user', text });
+
+  document.getElementById('typing-indicator').innerHTML = '<div class="typing">Wattson is thinking...</div>';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, history: chatHistory.slice(-10) }),
+    });
+    document.getElementById('typing-indicator').innerHTML = '';
+    if (res.ok) {
+      const data = await res.json();
+      const response = data.response || "I can't think right now.";
+      addChatMsg('wattson', response);
+      chatHistory.push({ role: 'assistant', text: response });
+    } else {
+      addChatMsg('wattson', "My brain isn't responding right now.");
+    }
+  } catch {
+    document.getElementById('typing-indicator').innerHTML = '';
+    addChatMsg('wattson', "Can't connect to my brain.");
+  }
+
+  sending = false;
+  document.getElementById('send-btn').disabled = false;
+  input.focus();
+}
+
+function addChatMsg(role, text) {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + role;
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+setInterval(pollState, 3000);
+pollState();
+</script>
+</body>
+</html>
