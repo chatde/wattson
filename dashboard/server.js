@@ -16,7 +16,7 @@ const HOME = process.env.HOME || '/data/data/com.termux/files/home';
 const STORAGE = '/storage/7000-8000';
 
 // ─── Cloud Vision + Voice API Keys ───────────────────────────────────────────
-const GROQ_API_KEY = process.env.GROQ_API_KEY || 'GROQ_KEY_REMOVED';
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const PHOTOS_DIR = '/sdcard/watson-photos';
 const TMP_DIR = `${process.env.HOME || '/data/data/com.termux/files/home'}/.watson-tmp`;

@@ -27,7 +27,7 @@ const path     = require('path');
 
 const HOME      = process.env.HOME || '/data/data/com.termux/files/home';
 const TERMUX_BIN = '/data/data/com.termux/files/usr/bin';
-const GROQ_KEY  = process.env.GROQ_API_KEY || 'GROQ_KEY_REMOVED';
+const GROQ_KEY  = process.env.GROQ_API_KEY || '';
 const OLLAMA_MODEL = 'wattson:chat';
 const CHUNK_SECS   = 3;   // ambient listen window (seconds)
 const COMMAND_SECS = 5;   // command capture window after wake word
