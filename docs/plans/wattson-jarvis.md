@@ -153,63 +153,48 @@ Result: `{"ok":true,"speaking":"Hello. I am Wattson. Your AI companion. Online a
 
 Separate process that continuously listens for "wattson", records the command, queries the brain, and speaks the answer.
 
-- [ ] **Step 1: Check termux-microphone-record availability**
+- [x] **Step 1: Check termux-microphone-record availability**
 
-```bash
-adb -s 192.168.4.32:5555 shell "run-as com.termux sh -c 'which termux-microphone-record; which termux-speech-to-text'"
-```
-If missing: `pkg install termux-api` — and grant microphone permission in Android settings.
+Both present: `termux-microphone-record`, `termux-speech-to-text`
 
-- [ ] **Step 2: Test microphone recording**
+- [x] **Step 2: Test microphone recording**
 
-```bash
-adb -s 192.168.4.32:5555 shell "run-as com.termux sh -c 'termux-microphone-record -l 3 -o /sdcard/test.wav && echo recorded'"
-```
-Expected: 3-second recording at /sdcard/test.wav.
+Flag is `-f` not `-o`. Records AAC format. Command starts recording and returns immediately.
+Need to `sleep(duration)` then send `-q` stop command before reading file.
 
-- [ ] **Step 3: Test speech-to-text**
+- [x] **Step 3: Speech-to-text decision**
 
-```bash
-adb -s 192.168.4.32:5555 shell "run-as com.termux sh -c 'termux-speech-to-text 2>&1 | head -3'"
-```
-Document what output format is returned. It may return a JSON with `utterances` array.
+`termux-speech-to-text` opens Android dialog — NOT usable in background.
+Solution: Use **Groq Whisper API** (key already in dashboard). Faster, background-compatible, free tier.
+STT format: POST multipart/form-data to `api.groq.com/openai/v1/audio/transcriptions`, model `whisper-large-v3-turbo`.
 
-- [ ] **Step 4: Create `watson-voice-daemon.js`**
+- [x] **Step 4: Create `watson-voice-daemon.js`**
 
-Core loop:
-1. Record 3s audio chunk via `termux-microphone-record`
-2. Transcribe via `termux-speech-to-text`
-3. Check if transcript contains "wattson"
+Core loop implemented:
+1. Record CHUNK_SECS (3) of audio via execFile termux-microphone-record
+2. Transcribe via Groq Whisper (HTTP POST, no shell)
+3. Check transcript.toLowerCase().includes('wattson')
 4. If yes: speak "Yes?", record 5s command audio, transcribe
-5. Send command to Ollama `wattson:chat` via HTTP (not shell — safe)
-6. Speak response via termux-tts-speak
+5. Send command to Ollama wattson:chat via HTTP POST body
+6. Speak response via TTS
 
-Security: all shell calls use execFile with argument arrays, not exec with template strings. Ollama prompt is sent via HTTP POST body — never shell-interpolated.
+Security: execFile with arg arrays throughout. Ollama via HTTP POST. Groq via HTTPS.
 
-- [ ] **Step 5: Deploy daemon**
+- [x] **Step 5: Deploy daemon**
 
-```bash
-adb -s 192.168.4.32:5555 push watson-voice-daemon.js /sdcard/watson-voice-daemon.js
-adb -s 192.168.4.32:5555 shell "run-as com.termux sh -c 'cp /sdcard/watson-voice-daemon.js ~/watson-voice-daemon.js && echo OK'"
-```
+Deployed to `/data/data/com.termux/files/home/watson-voice-daemon.js`
+Log: `/sdcard/wattson-voice.log` — confirmed: `[daemon] Wattson voice daemon started. Listening for wake word...`
 
-- [ ] **Step 6: Add to watson-core-boot.sh**
+- [x] **Step 6: Add to start-watson.sh**
 
-Edit `/Volumes/AI-Models/wattson/watson-core-boot.sh` to add:
-```
-nohup node "$HOME/watson-voice-daemon.js" >> /sdcard/wattson-voice.log 2>&1 &
-```
-Then push and verify the boot script starts it.
+Added step 5.5 to `/Volumes/AI-Models/wattson/start-watson.sh` — starts voice daemon alongside core/dashboard.
 
 - [ ] **Step 7: End-to-end test**
 
 Say "Wattson" near the phone. Expected: phone responds "Yes?" and then answers your follow-up question.
+Check log: `adb shell "tail -20 /sdcard/wattson-voice.log"`
 
-- [ ] **Step 8: Commit**
-
-```bash
-git add watson-voice-daemon.js && git commit -m "feat: voice daemon with wake word detection and voice response"
-```
+- [x] **Step 8: Commit** _(next commit)_
 
 ---
 
