@@ -321,6 +321,10 @@ function updateFaceState(category) {
   } catch {}
 }
 
+// ─── Knowledge retrieval (augment prompts with Watson's research) ────────────
+let _knowledgeRetriever = null;
+try { _knowledgeRetriever = require('./watson-tools/knowledge-retriever.js'); } catch {}
+
 // ─── Ollama Call Helper ───────────────────────────────────────────────────────
 // think: false MUST be at top level of request body (not inside options)
 
@@ -330,9 +334,20 @@ function _callOllamaOnce(prompt, options) {
     const opts = options || {};
     const streaming = opts.stream !== false; // default true
 
+    // Augment prompt with relevant knowledge from Watson's research library
+    let augmentedPrompt = prompt;
+    if (_knowledgeRetriever && !opts.skipKnowledge && prompt.length > 20) {
+      try {
+        const knowledge = _knowledgeRetriever.retrieveForPrompt(prompt, 600);
+        if (knowledge) {
+          augmentedPrompt = prompt + '\n\n[Watson\'s research notes: ' + knowledge.substring(0, 600) + ']';
+        }
+      } catch {}
+    }
+
     const body = JSON.stringify({
       model:      opts.model || tier.model || CONFIG.ollamaModel,
-      prompt:     prompt,
+      prompt:     augmentedPrompt,
       stream:     streaming,
       think:      false,           // top-level, NOT inside options
       keep_alive: CONFIG.modelKeepAlive,
@@ -643,6 +658,7 @@ const TOAST_CATEGORIES = new Set([
   'APP_CONTROL', 'DISCORD_POLL', 'MUSIC', 'APP_RESEARCH',
   'NOTIFICATION_CHECK', 'PHONE_AWARENESS', 'VISION', 'GROWTH_REFLECT',
   'SELF_EVOLVE', 'HEARING', 'KNOWLEDGE',
+  'TARS_INSIGHT', 'TARS_DIGEST', 'SLEEP_CYCLE',
 ]);
 
 // Phone-active categories — targeted for 50% cycle share

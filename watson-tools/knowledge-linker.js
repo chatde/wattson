@@ -1,0 +1,216 @@
+'use strict';
+// knowledge-linker.js — Cross-reference knowledge across domains
+// Tags knowledge entries, finds connections, builds a knowledge graph.
+// Watson doesn't just collect facts — he connects them.
+
+const fs = require('fs');
+const path = require('path');
+
+const HOME = process.env.HOME || '/data/data/com.termux/files/home';
+const KNOWLEDGE_DIR = '/sdcard/Android/data/md.obsidian/files/Wattson/knowledge';
+const CONNECTIONS_DIR = '/sdcard/Android/data/md.obsidian/files/Wattson/connections';
+const TAGS_INDEX = `${HOME}/watson-knowledge-tags.json`;
+
+// ─── Keyword extraction (lightweight, no deps) ─────────────────────────────
+
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for',
+  'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during',
+  'before', 'after', 'above', 'below', 'between', 'but', 'and', 'or',
+  'not', 'no', 'nor', 'so', 'yet', 'both', 'each', 'few', 'more',
+  'most', 'other', 'some', 'such', 'than', 'too', 'very', 'just',
+  'about', 'also', 'that', 'this', 'these', 'those', 'what', 'which',
+  'who', 'whom', 'how', 'when', 'where', 'why', 'all', 'any', 'if',
+  'its', 'it', 'they', 'them', 'their', 'he', 'she', 'his', 'her',
+  'we', 'our', 'you', 'your', 'my', 'me', 'us', 'source', 'web',
+  'research', 'raw', 'capture', 'google', 'search', 'unknown',
+]);
+
+function extractKeywords(text, maxKeywords) {
+  const words = text.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !STOP_WORDS.has(w));
+
+  // Count frequency
+  const freq = {};
+  for (const word of words) {
+    freq[word] = (freq[word] || 0) + 1;
+  }
+
+  // Sort by frequency, return top N
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxKeywords || 15)
+    .map(([word, count]) => ({ word, count }));
+}
+
+// Extract bigrams (two-word phrases) for richer tagging
+function extractBigrams(text, maxBigrams) {
+  const words = text.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+
+  const bigrams = {};
+  for (let i = 0; i < words.length - 1; i++) {
+    const bigram = `${words[i]} ${words[i + 1]}`;
+    bigrams[bigram] = (bigrams[bigram] || 0) + 1;
+  }
+
+  return Object.entries(bigrams)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxBigrams || 10)
+    .map(([phrase, count]) => ({ phrase, count }));
+}
+
+// ─── Tag all knowledge files ────────────────────────────────────────────────
+
+function tagAllKnowledge() {
+  const tagsIndex = {};
+
+  try {
+    const files = fs.readdirSync(KNOWLEDGE_DIR).filter(f => f.endsWith('.md'));
+
+    for (const file of files) {
+      const filepath = path.join(KNOWLEDGE_DIR, file);
+      const content = fs.readFileSync(filepath, 'utf8');
+
+      const domainMatch = content.match(/\*\*Domain:\*\*\s*(\S+)/);
+      const domain = domainMatch ? domainMatch[1] : 'unknown';
+
+      const keywords = extractKeywords(content, 20);
+      const bigrams = extractBigrams(content, 10);
+
+      const tags = [
+        ...keywords.map(k => k.word),
+        ...bigrams.map(b => b.phrase),
+      ];
+
+      tagsIndex[file] = {
+        domain,
+        tags,
+        keywords: keywords.slice(0, 10),
+        bigrams: bigrams.slice(0, 5),
+        size: content.length,
+      };
+    }
+  } catch {}
+
+  // Save tags index
+  try {
+    fs.writeFileSync(TAGS_INDEX, JSON.stringify(tagsIndex, null, 2), 'utf8');
+  } catch {}
+
+  return tagsIndex;
+}
+
+// ─── Find connections between knowledge files ───────────────────────────────
+
+function findConnections(tagsIndex) {
+  const connections = [];
+  const files = Object.keys(tagsIndex);
+
+  for (let i = 0; i < files.length; i++) {
+    for (let j = i + 1; j < files.length; j++) {
+      const a = tagsIndex[files[i]];
+      const b = tagsIndex[files[j]];
+
+      // Skip same-domain connections (too obvious)
+      if (a.domain === b.domain) continue;
+
+      // Find shared tags
+      const tagsA = new Set(a.tags);
+      const shared = b.tags.filter(t => tagsA.has(t));
+
+      if (shared.length >= 3) {
+        connections.push({
+          fileA: files[i],
+          fileB: files[j],
+          domainA: a.domain,
+          domainB: b.domain,
+          sharedTags: shared,
+          strength: shared.length,
+        });
+      }
+    }
+  }
+
+  // Sort by strength (most shared tags first)
+  return connections.sort((a, b) => b.strength - a.strength);
+}
+
+// ─── Write connections to Obsidian ──────────────────────────────────────────
+
+function writeConnections(connections) {
+  try { fs.mkdirSync(CONNECTIONS_DIR, { recursive: true }); } catch {}
+
+  const now = new Date().toISOString().split('T')[0];
+  const filepath = path.join(CONNECTIONS_DIR, `graph-${now}.md`);
+
+  const lines = [
+    `# Knowledge Graph — ${now}`,
+    `> Auto-generated by Watson's knowledge linker`,
+    '',
+    `## Cross-Domain Connections (${connections.length})`,
+    '',
+  ];
+
+  for (const conn of connections.slice(0, 20)) {
+    lines.push(
+      `### ${conn.domainA} ↔ ${conn.domainB} (strength: ${conn.strength})`,
+      `- **${conn.fileA.replace('.md', '')}** ↔ **${conn.fileB.replace('.md', '')}**`,
+      `- Shared concepts: ${conn.sharedTags.join(', ')}`,
+      '',
+    );
+  }
+
+  fs.writeFileSync(filepath, lines.join('\n'), 'utf8');
+  return filepath;
+}
+
+// ─── Find related knowledge for a query ─────────────────────────────────────
+
+function findRelated(query, maxResults) {
+  let tagsIndex;
+  try {
+    tagsIndex = JSON.parse(fs.readFileSync(TAGS_INDEX, 'utf8'));
+  } catch {
+    tagsIndex = tagAllKnowledge();
+  }
+
+  const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const results = [];
+
+  for (const [file, data] of Object.entries(tagsIndex)) {
+    let score = 0;
+    for (const word of queryWords) {
+      if (data.tags.some(t => t.includes(word) || word.includes(t))) {
+        score++;
+      }
+    }
+    if (score > 0) {
+      results.push({ file, domain: data.domain, score, tags: data.tags.slice(0, 5) });
+    }
+  }
+
+  return results
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxResults || 5);
+}
+
+// ─── Module exports ─────────────────────────────────────────────────────────
+
+module.exports = {
+  extractKeywords,
+  extractBigrams,
+  tagAllKnowledge,
+  findConnections,
+  writeConnections,
+  findRelated,
+  TAGS_INDEX,
+  CONNECTIONS_DIR,
+};

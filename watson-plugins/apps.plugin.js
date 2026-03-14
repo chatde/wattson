@@ -343,13 +343,40 @@ async function readScreenOCR() {
     .trim();
 }
 
+// ─── Dynamic topics from sleep-cycle gap analysis ───────────────────────────
+
+const DYNAMIC_TOPICS_FILE = `${HOME}/watson-research-topics-dynamic.json`;
+
+function loadDynamicTopics() {
+  try { return JSON.parse(fs.readFileSync(DYNAMIC_TOPICS_FILE, 'utf8')); }
+  catch { return []; }
+}
+
+// ─── CodexLib exporter integration ──────────────────────────────────────────
+
+let _codexlibExporter = null;
+try { _codexlibExporter = require('../watson-tools/codexlib-exporter.js'); } catch {}
+
 // ─── Pick next research topic ───────────────────────────────────────────────
 
 function pickResearchTopic() {
-  // Sort by depth (least researched first) then randomize among ties
-  const sorted = [...RESEARCH_TOPICS].sort((a, b) => a.depth - b.depth);
-  const minDepth = sorted[0].depth;
-  const candidates = sorted.filter(t => t.depth === minDepth);
+  // Merge static + dynamic topics
+  const dynamicTopics = loadDynamicTopics();
+  const allTopics = [...RESEARCH_TOPICS, ...dynamicTopics];
+
+  // Auto-deepen strategy:
+  // 70% chance: pick least-researched topic (breadth)
+  // 30% chance: pick a mid-depth topic to go deeper (depth for CodexLib quality)
+  if (Math.random() < 0.3 && allTopics.some(t => t.depth >= 2 && t.depth < 8)) {
+    // Deepen a topic that's already started but not yet CodexLib-ready
+    const deepenCandidates = allTopics.filter(t => t.depth >= 2 && t.depth < 8);
+    return deepenCandidates[Math.floor(Math.random() * deepenCandidates.length)];
+  }
+
+  // Breadth: pick least researched
+  const sorted = [...allTopics].sort((a, b) => (a.depth || 0) - (b.depth || 0));
+  const minDepth = sorted[0].depth || 0;
+  const candidates = sorted.filter(t => (t.depth || 0) === minDepth);
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
