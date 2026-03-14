@@ -207,12 +207,12 @@ Check log: `adb shell "tail -20 /sdcard/wattson-voice.log"`
 
 ### Task 2.1: Screenshot + OCR
 
-- [ ] Check if Tesseract is available: `pkg install tesseract` in Termux if not
-- [ ] Test: take screenshot via `adb shell screencap -p /sdcard/screen.png`, run OCR, verify text output
-- [ ] Create `screen-reader.plugin.js` with SCREEN_READ category (weight 3)
+- [x] Check if Tesseract is available: pkg install tesseract — installed v5.5.2 with eng data
+- [x] Test: screencap+tesseract pipeline confirmed. OCR extracts text from unlocked screen. Lock screen (< 40 chars) correctly skipped.
+- [x] Created screen-reader.plugin.js — SCREEN_READ (weight 3). Dedup hash, 40-char min, brain scores 1-10, stores summaries in wattson-knowledge.jsonl
   - Takes screenshot, runs OCR, feeds interesting text to brain
   - Brain decides if content is worth storing in watson-knowledge
-- [ ] Deploy + verify hot-reload + commit
+- [x] Deploy + hot-reload confirmed (69 total categories) + committed
 
 ### Task 2.2: ChatGPT as a tool
 
