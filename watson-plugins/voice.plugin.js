@@ -20,7 +20,7 @@
 const { execFile } = require('child_process');
 
 const TTS_BIN  = '/data/data/com.termux/files/usr/bin/termux-tts-speak';
-const TTS_OPTS = ['-p', '0.7', '-r', '0.9', '-s', 'MUSIC'];
+const TTS_OPTS = ['-e', 'com.google.android.tts', '-p', '0.7', '-r', '0.9', '-s', 'MUSIC'];
 
 // ─── Sanitize text before passing to TTS shell command ────────────────────────
 

@@ -35,7 +35,7 @@ const CHUNK_FILE   = '/sdcard/.wattson-chunk.aac';
 const CMD_FILE     = '/sdcard/.wattson-cmd.aac';
 const TTS_BIN      = path.join(TERMUX_BIN, 'termux-tts-speak');
 const MIC_BIN      = path.join(TERMUX_BIN, 'termux-microphone-record');
-const TTS_OPTS     = ['-p', '0.7', '-r', '0.9', '-s', 'MUSIC'];
+const TTS_OPTS     = ['-e', 'com.google.android.tts', '-p', '0.7', '-r', '0.9', '-s', 'MUSIC'];
 const LOG_FILE     = '/sdcard/wattson-voice.log';
 
 let _running = false;

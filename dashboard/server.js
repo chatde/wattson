@@ -1711,7 +1711,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         const TTS_BIN = '/data/data/com.termux/files/usr/bin/termux-tts-speak';
-        execFile(TTS_BIN, ['-p', '0.7', '-r', '0.9', '-s', 'MUSIC', clean], { timeout: 30000 }, (err) => {
+        execFile(TTS_BIN, ['-e', 'com.google.android.tts', '-p', '0.7', '-r', '0.9', '-s', 'MUSIC', clean], { timeout: 30000 }, (err) => {
           if (err) console.error('[speak] TTS error:', err.message);
         });
 
