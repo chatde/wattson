@@ -1281,69 +1281,80 @@ function drawFaceShape(cx,cy,unit) {
   ctx.fillStyle=`rgba(${Math.max(0,br-40)},${Math.max(0,bg-45)},${Math.max(0,bb-35)},0.25)`;
   ctx.fill();
 
-  // ── Ears ──
+  // ── Ears (subtle, close to head) ──
   for(const side of[-1,1]){
-    const earX=cx+side*cheekW*0.98, earY=cy-unit*0.05;
+    const earX=cx+side*cheekW*0.95, earY=cy-unit*0.1;
     ctx.beginPath();
-    ctx.ellipse(earX+side*unit*0.18,earY,unit*0.18,unit*0.32,side*0.15,0,Math.PI*2);
+    ctx.ellipse(earX+side*unit*0.08,earY,unit*0.1,unit*0.22,side*0.2,0,Math.PI*2);
     ctx.fillStyle=skinCol;ctx.fill();
-    ctx.strokeStyle=skinColDark;ctx.lineWidth=unit*0.03;ctx.stroke();
-    // Inner ear
+    ctx.strokeStyle=skinColDark;ctx.lineWidth=unit*0.02;ctx.stroke();
+    // Inner ear detail
     ctx.beginPath();
-    ctx.ellipse(earX+side*unit*0.2,earY,unit*0.1,unit*0.2,side*0.15,0,Math.PI*2);
-    ctx.fillStyle=`rgba(${Math.max(0,br-25)},${Math.max(0,bg-30)},${Math.max(0,bb-20)},0.5)`;ctx.fill();
+    ctx.ellipse(earX+side*unit*0.09,earY,unit*0.05,unit*0.13,side*0.2,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${Math.max(0,br-20)},${Math.max(0,bg-25)},${Math.max(0,bb-15)},0.35)`;ctx.fill();
   }
 
   ctx.restore();
 }
 
-// ─── Draw Hair ──────────────────────────────────────────────────────
+// ─── Draw Hair (grows from head, not a cap) ─────────────────────────
 function drawHair(cx,cy,unit) {
   const ap = actorLerp;
   const sf = getStageFace();
   const fw = unit*2.6*ap.faceWidth;
   const fh = unit*3.4*sf.roundness;
-  // Hair color based on skin — darker skin gets darker hair, lighter gets brown/blonde
   const hairDark = ap.skinLit < 40;
-  const hairR = hairDark ? 15+ap.skinLit*0.3 : 60+ap.skinLit*0.6;
-  const hairG = hairDark ? 10+ap.skinLit*0.2 : 40+ap.skinLit*0.4;
-  const hairB = hairDark ? 8+ap.skinLit*0.15 : 25+ap.skinLit*0.3;
+  const hairR = hairDark ? 12+ap.skinLit*0.2 : 55+ap.skinLit*0.5;
+  const hairG = hairDark ? 8+ap.skinLit*0.15 : 35+ap.skinLit*0.35;
+  const hairB = hairDark ? 6+ap.skinLit*0.1 : 22+ap.skinLit*0.25;
   const hairCol = `rgb(${Math.round(hairR)},${Math.round(hairG)},${Math.round(hairB)})`;
-  const hairColDark = `rgb(${Math.round(hairR*0.5)},${Math.round(hairG*0.5)},${Math.round(hairB*0.5)})`;
+  const hairColDark = `rgb(${Math.round(hairR*0.4)},${Math.round(hairG*0.4)},${Math.round(hairB*0.4)})`;
+  const hairColHighlight = `rgba(${Math.round(hairR*1.5)},${Math.round(hairG*1.5)},${Math.round(hairB*1.5)},0.3)`;
 
   ctx.save();
-  // Hair volume on top of head
-  const hairTop = cy-fh*0.55;
   const foreheadW = fw*0.52;
+  const foreheadY = cy-fh*0.42;
+  // Hair sits on the skull — starts at the crown, overlaps the forehead
+  const crownY = cy-fh*0.50; // just above the forehead
+  const hairVolumeTop = crownY - unit*0.15; // only slight volume above skull
+
+  // Main hair shape — follows the skull contour with slight volume
   ctx.beginPath();
-  ctx.moveTo(cx-foreheadW*1.05, cy-fh*0.35);
-  ctx.quadraticCurveTo(cx-foreheadW*0.8, hairTop-unit*0.25, cx, hairTop-unit*0.2);
-  ctx.quadraticCurveTo(cx+foreheadW*0.8, hairTop-unit*0.25, cx+foreheadW*1.05, cy-fh*0.35);
-  // Hairline follows forehead
-  ctx.quadraticCurveTo(cx+foreheadW*0.5, cy-fh*0.40, cx, cy-fh*0.38);
-  ctx.quadraticCurveTo(cx-foreheadW*0.5, cy-fh*0.40, cx-foreheadW*1.05, cy-fh*0.35);
+  // Left side — starts at temple, goes up and over
+  ctx.moveTo(cx-foreheadW*1.0, foreheadY+unit*0.1);
+  // Up the left side of head
+  ctx.quadraticCurveTo(cx-foreheadW*1.02, crownY, cx-foreheadW*0.6, hairVolumeTop);
+  // Across the top (slight dome)
+  ctx.quadraticCurveTo(cx, hairVolumeTop-unit*0.08, cx+foreheadW*0.6, hairVolumeTop);
+  // Down the right side
+  ctx.quadraticCurveTo(cx+foreheadW*1.02, crownY, cx+foreheadW*1.0, foreheadY+unit*0.1);
+  // Hairline across forehead — natural M-shape hairline
+  ctx.quadraticCurveTo(cx+foreheadW*0.6, foreheadY-unit*0.02, cx+foreheadW*0.25, foreheadY+unit*0.05);
+  ctx.quadraticCurveTo(cx, foreheadY-unit*0.03, cx-foreheadW*0.25, foreheadY+unit*0.05);
+  ctx.quadraticCurveTo(cx-foreheadW*0.6, foreheadY-unit*0.02, cx-foreheadW*1.0, foreheadY+unit*0.1);
   ctx.closePath();
-  const hairGrad=ctx.createLinearGradient(cx,hairTop-unit*0.3,cx,cy-fh*0.35);
+
+  const hairGrad=ctx.createLinearGradient(cx,hairVolumeTop,cx,foreheadY+unit*0.1);
   hairGrad.addColorStop(0,hairCol);
+  hairGrad.addColorStop(0.7,hairColDark);
   hairGrad.addColorStop(1,hairColDark);
   ctx.fillStyle=hairGrad;
   ctx.fill();
 
-  // Hair strands for texture
-  ctx.strokeStyle=`rgba(${Math.round(hairR*1.3)},${Math.round(hairG*1.3)},${Math.round(hairB*1.3)},0.2)`;
-  ctx.lineWidth=unit*0.02;
-  for(let i=0;i<8;i++){
-    const sx=cx-foreheadW*0.8+i*foreheadW*0.2;
-    ctx.beginPath();
-    ctx.moveTo(sx,cy-fh*0.38);
-    ctx.quadraticCurveTo(sx+unit*0.05,hairTop-unit*0.1,sx-unit*0.05,hairTop-unit*0.15);
-    ctx.stroke();
-  }
+  // Highlight on top for shine
+  ctx.beginPath();
+  ctx.ellipse(cx+unit*0.1, hairVolumeTop+unit*0.05, fw*0.2, unit*0.06, -0.1, 0, Math.PI*2);
+  ctx.fillStyle=hairColHighlight;
+  ctx.fill();
 
-  // Side hair (temples)
+  // Temple hair (sideburns area — thin, close to head)
   for(const side of[-1,1]){
     ctx.beginPath();
-    ctx.ellipse(cx+side*foreheadW*0.95,cy-fh*0.22,unit*0.15,unit*0.4,side*0.3,0,Math.PI*2);
+    const tx=cx+side*foreheadW*0.98;
+    ctx.moveTo(tx, foreheadY+unit*0.05);
+    ctx.quadraticCurveTo(tx+side*unit*0.05, cy-fh*0.15, tx-side*unit*0.02, cy-fh*0.05);
+    ctx.lineTo(tx-side*unit*0.08, cy-fh*0.05);
+    ctx.quadraticCurveTo(tx-side*unit*0.02, cy-fh*0.18, tx, foreheadY+unit*0.05);
     ctx.fillStyle=hairColDark;ctx.fill();
   }
   ctx.restore();
@@ -1634,27 +1645,44 @@ function draw(timestamp){
   const unit=Math.min(w,h)*0.14;
   const faceCX=w/2, faceCY=h*0.42+anim.headBobY;
   const sf=getStageFace();
-  const eyeSpacing=unit*1.6;
-  const eyeRadius=unit*0.75*actorLerp.eyeSize*sf.eyeScale;
+  // Human proportions: eyes are small relative to head, close together, sit at ~40% from top
+  const eyeSpacing=unit*1.15;
+  const eyeRadius=unit*0.42*actorLerp.eyeSize*sf.eyeScale;
+  const eyeY=faceCY-unit*0.25; // eyes sit above center (human anatomy)
   const breathScale=1+Math.sin(anim.breathPhase)*0.008;
 
   ctx.save();
   ctx.translate(faceCX,faceCY); ctx.scale(breathScale,breathScale); ctx.translate(-faceCX,-faceCY);
   drawBreathGlow(faceCX,faceCY,unit*3,anim.breathPhase);
+
+  // Neck (draw before face so face overlaps it)
+  const ap=actorLerp;
+  const [nr,ng,nb]=hsl2rgb(ap.skinHue,ap.skinSat,Math.max(10,ap.skinLit-8));
+  ctx.fillStyle=`rgb(${nr},${ng},${nb})`;
+  ctx.beginPath();
+  ctx.moveTo(faceCX-unit*0.45,faceCY+unit*1.55);
+  ctx.lineTo(faceCX-unit*0.38,faceCY+unit*2.3);
+  ctx.quadraticCurveTo(faceCX,faceCY+unit*2.4,faceCX+unit*0.38,faceCY+unit*2.3);
+  ctx.lineTo(faceCX+unit*0.45,faceCY+unit*1.55);
+  ctx.closePath();ctx.fill();
+  // Neck shadow
+  ctx.fillStyle=`rgba(0,0,0,0.15)`;
+  ctx.beginPath();ctx.ellipse(faceCX,faceCY+unit*1.6,unit*0.45,unit*0.08,0,0,Math.PI);ctx.fill();
+
   drawFaceShape(faceCX,faceCY,unit);
   drawHair(faceCX,faceCY,unit);
   const leftEyeX=faceCX-eyeSpacing/2, rightEyeX=faceCX+eyeSpacing/2;
-  drawEyebrow(leftEyeX,faceCY,eyeRadius,anim.eyebrowAngle,true);
-  drawEyebrow(rightEyeX,faceCY,eyeRadius,anim.eyebrowAngle,false);
+  drawEyebrow(leftEyeX,eyeY,eyeRadius,anim.eyebrowAngle,true);
+  drawEyebrow(rightEyeX,eyeY,eyeRadius,anim.eyebrowAngle,false);
   const effectiveOpen=anim.eyeOpen*blinkMod;
   const effSparkle=anim.sparkleOpacity*sparkleFlicker;
-  drawEye(leftEyeX,faceCY,eyeRadius,effectiveOpen,anim.eyeNarrow,anim.pupilSize,anim.lookX,anim.lookY,anim.jitterX,anim.jitterY,anim.sparkle,effSparkle,anim.beatFlash);
-  drawEye(rightEyeX,faceCY,eyeRadius,effectiveOpen,anim.eyeNarrow,anim.pupilSize,anim.lookX,anim.lookY,anim.jitterX,anim.jitterY,anim.sparkle,effSparkle,anim.beatFlash);
-  drawNose(faceCX,faceCY+unit*0.60*sf.featureScale,unit*actorLerp.noseWidth);
-  const blushY=faceCY+eyeRadius*0.9, blushOffX=eyeSpacing/2+eyeRadius*0.5;
+  drawEye(leftEyeX,eyeY,eyeRadius,effectiveOpen,anim.eyeNarrow,anim.pupilSize,anim.lookX,anim.lookY,anim.jitterX,anim.jitterY,anim.sparkle,effSparkle,anim.beatFlash);
+  drawEye(rightEyeX,eyeY,eyeRadius,effectiveOpen,anim.eyeNarrow,anim.pupilSize,anim.lookX,anim.lookY,anim.jitterX,anim.jitterY,anim.sparkle,effSparkle,anim.beatFlash);
+  drawNose(faceCX,faceCY+unit*0.45*sf.featureScale,unit*actorLerp.noseWidth);
+  const blushY=eyeY+eyeRadius*1.8, blushOffX=eyeSpacing/2+eyeRadius*0.3;
   drawBlush(faceCX-blushOffX,blushY,eyeRadius,anim.blushIntensity);
   drawBlush(faceCX+blushOffX,blushY,eyeRadius,anim.blushIntensity);
-  drawMouth(faceCX,faceCY+unit*1.3*sf.featureScale,unit*1.4*actorLerp.lipFullness,anim.mouthCurve,talkOpen,anim.mouthAsymmetry,anim.surpriseMouth);
+  drawMouth(faceCX,faceCY+unit*1.15*sf.featureScale,unit*1.2*actorLerp.lipFullness,anim.mouthCurve,talkOpen,anim.mouthAsymmetry,anim.surpriseMouth);
   ctx.restore();
 
   const fontSize=Math.min(12,w*0.035);
