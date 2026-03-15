@@ -1026,12 +1026,18 @@ async function brainLoop() {
 
     // Guaranteed-fire: critical autonomous categories must run at minimum intervals
     const OVERDUE = {
-      DISCORD_POLL:    1,    // check Discord commands EVERY cycle — user expects fast response
+      DISCORD_POLL:    3,    // check Discord every 3 cycles (~2-3 min) — was 1 which starved all other categories
       ANOMALY_CHECK:   8,    // health check every 8 cycles
       GOAL_CHECK:      10,   // goals every 10 cycles
+      WATCHDOG:        12,   // crypto/server/weather every 12 cycles (~10 min)
       SELF_AWARE:      15,   // introspect every 15 cycles (~15 min)
+      APP_CONTROL:     6,    // research every 6 cycles (~5 min)
+      CURIOSITY_ENGINE: 20,  // spawn new questions every 20 cycles
+      TARS_INSIGHT:    25,   // share findings every 25 cycles (~20 min)
       MAINTENANCE:     30,   // housekeeping every 30 cycles
       LIVING_DISPLAY:  5,    // keep screen alive every 5 cycles (~3-5 min)
+      FACE_DESIGN:     15,   // evolve face every 15 cycles — Dad wants face updates
+      GOAL_PLAN:       10,   // work on goals every 10 cycles
       MODEL_SCOUT:     120,  // scout for better models every ~2 hours
       SELF_EVOLVE:     200,  // self-modify analysis every ~200 cycles (~3.5 hours)
     };

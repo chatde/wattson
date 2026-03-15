@@ -381,15 +381,14 @@ function pickResearchTopic() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// APP_CONTROL v2 — Purposeful Research
+// APP_CONTROL v3 — Web-Fetch Research (no screen needed, 10x faster)
 // ═══════════════════════════════════════════════════════════════════════════════
-// Instead of opening random apps and tapping blindly, Watson now:
-// 1. Picks a research topic from its queue
-// 2. Opens Chrome and searches for it
-// 3. Reads the screen with OCR (Tesseract)
-// 4. Summarizes with Ollama (watson:mind, not Moondream)
-// 5. Stores structured knowledge in Obsidian vault
-// 6. Shows EVERYTHING it's thinking on screen
+// Watson researches via HTTP: Wikipedia + DuckDuckGo + web pages.
+// No Chrome, no OCR, no screenshots. Clean structured text.
+// Screen stays on dashboard while Watson researches in the background.
+
+let _webResearch = null;
+try { _webResearch = require('../watson-tools/web-research.js'); } catch {}
 
 async function handleAppControl(state, config, thought, callOllama) {
   const topic = pickResearchTopic();
@@ -397,64 +396,50 @@ async function handleAppControl(state, config, thought, callOllama) {
   showThinking(`🧠 Researching: ${topic.topic}`);
   thought(`[RESEARCH] Starting research: "${topic.topic}" (domain: ${topic.domain}, depth: ${topic.depth})`);
 
-  await ensureSelfAdb();
-  await selfAdbShell('input keyevent KEYCODE_WAKEUP', 3000);
-  await sleep(500);
+  // ─── Step 1: Fetch from web (Wikipedia + DuckDuckGo + pages) ────────────
+  showThinking(`🌐 Fetching: ${topic.topic}...`);
+  thought(`[RESEARCH] Fetching from Wikipedia + DuckDuckGo...`);
 
-  // ─── Step 1: Open Chrome and search ─────────────────────────────────────
-  showThinking(`📱 Opening Chrome to search: ${topic.topic}`);
-  thought(`[RESEARCH] Opening Chrome...`);
-
-  // Use Chrome's intent to search directly
-  const searchQuery = topic.topic.replace(/ /g, '+');
-  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(topic.topic)}`;
-  await selfAdbShell(`am start -a android.intent.action.VIEW -d "${searchUrl}"`, 8000);
-  await sleep(5000);
-
-  // ─── Step 2: Read search results with OCR ───────────────────────────────
-  showThinking(`👁️ Reading search results...`);
-  thought(`[RESEARCH] Reading screen with OCR...`);
-
-  const screenText1 = await readScreenOCR();
-
-  if (!screenText1 || screenText1.length < 50) {
-    thought(`[RESEARCH] OCR returned too little text — page might still be loading`);
-    await sleep(3000);
+  let fullArticle = '';
+  if (_webResearch) {
+    try {
+      const research = await _webResearch.researchTopic(topic.topic);
+      if (research.success) {
+        fullArticle = research.content;
+        const srcCount = research.sources.length;
+        thought(`[RESEARCH] Got ${srcCount} sources, ${fullArticle.length} chars of content`);
+        showThinking(`📚 Found ${srcCount} sources for ${topic.topic}`);
+      } else {
+        thought(`[RESEARCH] Web research returned no results`);
+      }
+    } catch (e) {
+      thought(`[RESEARCH] Web research error: ${e.message}`);
+    }
   }
 
-  // ─── Step 3: Scroll down for more content ───────────────────────────────
-  showThinking(`📜 Scrolling for more info...`);
-  await selfAdbShell('input swipe 540 1600 540 400 500', 4000);
-  await sleep(2000);
-
-  const screenText2 = await readScreenOCR();
-
-  // Combine both reads
-  const rawText = (screenText1 + '\n' + screenText2).substring(0, 3000);
-
-  if (rawText.length < 100) {
-    thought(`[RESEARCH] Not enough text captured — skipping this cycle`);
-    state.lastThought = `[RESEARCH] ${topic.topic} — couldn't read page`;
+  // Fallback: if web-research module not available or failed, try Chrome + OCR
+  if (!fullArticle || fullArticle.length < 100) {
+    thought(`[RESEARCH] Falling back to Chrome + OCR...`);
+    await ensureSelfAdb();
+    await selfAdbShell('input keyevent KEYCODE_WAKEUP', 3000);
+    await sleep(500);
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(topic.topic)}`;
+    await selfAdbShell(`am start -a android.intent.action.VIEW -d "${searchUrl}"`, 8000);
+    await sleep(5000);
+    const screenText = await readScreenOCR();
+    await selfAdbShell('input swipe 540 1600 540 400 500', 4000);
+    await sleep(2000);
+    const screenText2 = await readScreenOCR();
+    fullArticle = (screenText + '\n' + screenText2).substring(0, 4000);
+    // Return to dashboard after using screen
     await selfAdbShell(`am start -a android.intent.action.VIEW -d ${DASHBOARD_URL}`, 5000);
+  }
+
+  if (!fullArticle || fullArticle.length < 100) {
+    thought(`[RESEARCH] Not enough content — skipping this cycle`);
+    state.lastThought = `[RESEARCH] ${topic.topic} — no content found`;
     return;
   }
-
-  // ─── Step 4: Tap first result to get deeper content ─────────────────────
-  showThinking(`🔗 Opening first search result...`);
-  thought(`[RESEARCH] Tapping first search result for deeper content...`);
-
-  // Tap the first result (usually around y=400-600 area, below search bar)
-  await selfAdbShell('input tap 540 500', 3000);
-  await sleep(4000);
-
-  const articleText = await readScreenOCR();
-
-  // Scroll for more article content
-  await selfAdbShell('input swipe 540 1600 540 400 500', 4000);
-  await sleep(2000);
-  const articleText2 = await readScreenOCR();
-
-  const fullArticle = (articleText + '\n' + articleText2).substring(0, 4000);
 
   // ─── Step 5: Summarize with Ollama ──────────────────────────────────────
   showThinking(`🧠 Summarizing what I learned about ${topic.topic}...`);
@@ -477,7 +462,7 @@ async function handleAppControl(state, config, thought, callOllama) {
   showThinking(`💾 Saving knowledge: ${topic.domain}/${topic.topic}`);
   thought(`[RESEARCH] Saving to knowledge library...`);
 
-  const filepath = appendKnowledge(topic.domain, topic.topic, summary, 'google search');
+  const filepath = appendKnowledge(topic.domain, topic.topic, summary, 'web research');
 
   // Update topic depth (we've researched it one more level)
   topic.depth++;
