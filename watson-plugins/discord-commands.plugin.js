@@ -231,11 +231,23 @@ async function executeMusic(intent, thought, config, callOllama) {
   await spawnAsync('termux-volume', ['music', '13'], 3000);
   for (let i = 0; i < 3; i++) await pe.selfAdbShell('input keyevent KEYCODE_VOLUME_UP', 1500);
 
-  // ─── Step 1: Open app ───────────────────────────────────────────────────
+  // ─── Step 1: Open app (ensure we leave any previous app first) ──────────
   await reportProgress(`Opening ${app}... 🎵`, thought);
-  await pe.selfAdbShell(`monkey -p ${appInfo.pkg} -c android.intent.category.LAUNCHER 1`, 5000);
-  await pe.sleep(4000);
-  logStep(actionLog, 'open_app', { app }, 'home', null);
+  // Press home first to exit whatever app is in foreground (e.g. Chrome from research)
+  await pe.selfAdbShell('input keyevent KEYCODE_HOME', 2000);
+  await pe.sleep(1000);
+  // Launch the music app
+  await pe.selfAdbShell(`am start -n ${appInfo.activity}`, 8000);
+  await pe.sleep(3000);
+  // Verify we're in the right app — if not, try monkey launch
+  const focusCheck = await pe.selfAdbShell('dumpsys window windows | grep mCurrentFocus', 3000);
+  const inRightApp = focusCheck.ok && focusCheck.output.includes(appInfo.pkg);
+  if (!inRightApp) {
+    await reportProgress(`Not in ${app} yet — retrying launch...`, thought);
+    await pe.selfAdbShell(`monkey -p ${appInfo.pkg} -c android.intent.category.LAUNCHER 1`, 5000);
+    await pe.sleep(4000);
+  }
+  logStep(actionLog, 'open_app', { app, verified: inRightApp }, 'home', null);
 
   // ─── Step 2: OBSERVE — what screen are we on? ───────────────────────────
   let perception = await pe.perceiveScreen(config, thought);
@@ -478,15 +490,30 @@ async function searchAndPlay(appInfo, query, thought, config, actionLog) {
     // Default search field position (top of screen)
     await pe.selfAdbShell('input tap 540 150', 3000);
   }
+  await pe.sleep(2000);
+
+  // Tap again to ensure focus (first tap sometimes just selects, doesn't activate keyboard)
+  if (searchField) {
+    await pe.selfAdbShell(`input tap ${searchField.cx} ${searchField.cy}`, 2000);
+  } else {
+    await pe.selfAdbShell('input tap 540 150', 2000);
+  }
   await pe.sleep(1500);
   logStep(actionLog, 'tap_search_field', {}, null, null);
 
-  // Clear any leftover text — long-press backspace for 3 seconds
-  await pe.selfAdbShell('input swipe 700 1830 700 1830 3000', 5000);
+  // Select all existing text and delete it (Ctrl+A then Delete)
+  // This is more reliable than long-press backspace which hits wrong keys
+  await pe.selfAdbShell('input keyevent KEYCODE_MOVE_END', 1500);
+  await pe.selfAdbShell('input keyevent --longpress KEYCODE_DEL', 3000);
+  await pe.sleep(500);
+  // Also try select-all + delete as backup
+  await pe.selfAdbShell('input keyevent 29 --longpress', 2000); // hold A
+  await pe.selfAdbShell('input keyevent KEYCODE_DEL', 1500);
   await pe.sleep(500);
 
-  // Type the search query
+  // Type the search query — add small delay before first char to avoid keyboard eating it
   await reportProgress(`Searching for "${query}"... 🔍`, thought);
+  await pe.sleep(800);
   const safeQuery = query.replace(/[^a-zA-Z0-9 ]/g, '').replace(/ /g, '%s');
   await pe.selfAdbShell(`input text ${safeQuery}`, 5000);
   logStep(actionLog, 'type_query', { query }, null, null);
