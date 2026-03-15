@@ -3,353 +3,2556 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Wattson</title>
+<title>Watson Dashboard</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="/icon-192.svg" type="image/svg+xml">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #0a0a1a;
-    color: #c8d2e6;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+/* ═══════════════════════════════════════════════════════
+   Watson Dashboard — Phase 17 — Production Grade
+   Dark terminal aesthetic. Face is the star.
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── CSS Custom Properties ─────────────────────────── */
+:root {
+  --primary: #00ff88;
+  --primary-dim: rgba(0,255,136,0.15);
+  --bg: #0a0a1a;
+  --surface: #0f0f22;
+  --surface2: #141428;
+  --border: rgba(100,100,180,0.12);
+  --text: #c8d2e6;
+  --text-dim: rgba(150,160,180,0.65);
+  --text-faint: rgba(100,110,130,0.45);
+  --joy: #2ecc71;
+  --curiosity: #3498db;
+  --focus: #9b59b6;
+  --anxiety: #e74c3c;
+  --excitement: #f1c40f;
+  --serenity: #5dade2;
+  --tab-h: 38px;
+  --face-panel-bg: #06060f;
+}
+/* Dark theme always — no light-mode override */
+
+/* ─── Reset ──────────────────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%;
+  background: var(--bg);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  color: var(--text);
+  overflow: hidden;
+}
+@media (max-width:600px) {
+  html, body { overflow-y:auto; overflow-x:hidden; height:auto; }
+}
+
+/* ─── App Shell ──────────────────────────────────────── */
+.app-shell {
+  display: grid;
+  width: 100%; height: 100vh;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+/* Phone */
+@media (max-width:600px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    height: auto;
     min-height: 100vh;
-    padding: 16px;
   }
+}
 
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid rgba(100, 120, 160, 0.2);
-  }
-  .eye {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    background: radial-gradient(circle, #3498db 30%, #0a0a1a 70%);
-    border: 2px solid #3498db;
-    box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
-    animation: pulse 3s ease-in-out infinite;
-  }
-  .eye.paused { background: radial-gradient(circle, #e67e22 30%, #0a0a1a 70%); border-color: #e67e22; box-shadow: 0 0 15px rgba(230, 126, 34, 0.5); }
-  .eye.offline { background: radial-gradient(circle, #555 30%, #0a0a1a 70%); border-color: #555; box-shadow: none; animation: none; }
-  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-  .title { font-size: 20px; font-weight: bold; color: #e0e8f0; }
-  .subtitle { font-size: 11px; color: rgba(160, 175, 200, 0.5); }
+/* ─── Left Column: Face + identity bar ──────────────── */
+.col-left {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  height: 100vh; /* explicit: Chrome Android 9 grid+flex bug */
+}
+@media (max-width:600px) { .col-left { border-right: none; height: auto; } }
 
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-  .stat {
-    background: rgba(20, 25, 45, 0.8);
-    border: 1px solid rgba(100, 120, 160, 0.15);
-    border-radius: 8px;
-    padding: 10px;
-    text-align: center;
-  }
-  .stat-label { font-size: 9px; color: rgba(140, 155, 180, 0.6); text-transform: uppercase; letter-spacing: 1px; }
-  .stat-value { font-size: 18px; font-weight: bold; color: #e0e8f0; margin-top: 2px; }
-  .stat-value.hot { color: #e74c3c; }
-  .stat-value.warm { color: #e67e22; }
-  .stat-value.cool { color: #2ecc71; }
-  .stat-value.low { color: #e74c3c; }
+/* ─── Right Column: Tab system ───────────────────────── */
+.col-right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100vh; /* explicit: Chrome Android 9 grid+flex bug */
+}
+@media (max-width:600px) { .col-right { height: auto; } }
 
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 12px;
-  }
-  .tab {
-    padding: 6px 14px;
-    background: rgba(52, 152, 219, 0.1);
-    border: 1px solid rgba(52, 152, 219, 0.2);
-    border-radius: 16px;
-    font-size: 12px;
-    color: #3498db;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .tab.active { background: rgba(52, 152, 219, 0.25); border-color: #3498db; }
+/* ─── Face Panel ─────────────────────────────────────── */
+.panel-face {
+  flex: 1 1 auto;
+  position: relative;
+  background: var(--face-panel-bg);
+  min-height: 0;
+  height: calc(100vh - 55px); /* explicit height: Chrome 69 flex-in-grid bug */
+}
+@media (max-width:600px) { .panel-face { min-height: 220px; max-height: 240px; } }
+.panel-face canvas { width:100%; height:100%; display:block; }
+#weather-canvas {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  pointer-events:none; z-index:6;
+}
+#edge-glow {
+  position:absolute; top:0; left:0; right:0; bottom:0;
+  pointer-events:none; z-index:10;
+  box-shadow: inset 0 0 20px 10px rgba(100,100,255,0);
+  transition: box-shadow 0.3s ease;
+}
+.dream-overlay {
+  position:absolute; top:0; left:0; right:0; bottom:0;
+  background: radial-gradient(ellipse at center, rgba(155,89,182,0.08), transparent 70%);
+  pointer-events:none; z-index:5;
+  opacity:0; transition:opacity 2s;
+}
+.dream-overlay.active { opacity:1; }
+.dream-indicator {
+  position:absolute; bottom:6px; left:50%; transform:translateX(-50%);
+  z-index:15; font-size:10px; font-style:italic;
+  color:rgba(155,89,182,0.6); opacity:0; transition:opacity 1s;
+}
+.dream-indicator.active { opacity:1; }
 
-  .panel { display: none; }
-  .panel.active { display: block; }
+/* Activity banner */
+.activity-banner {
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  z-index:20; display:flex; align-items:center; gap:6px;
+  padding:3px 10px; border-radius:12px; font-size:11px;
+  font-weight:600; letter-spacing:0.5px; transition:all 0.5s ease;
+  white-space:nowrap;
+}
+.activity-IDLE     { background:rgba(50,60,80,0.6); color:rgba(160,170,190,0.7); }
+.activity-THINKING { background:rgba(142,68,173,0.8); color:#fff; animation:pulse-think 2s infinite; }
+.activity-SPEAKING { background:rgba(39,174,96,0.8); color:#fff; }
+.activity-LISTENING{ background:rgba(41,128,185,0.8); color:#fff; animation:pulse-listen 1.5s infinite; }
+.activity-LOOKING  { background:rgba(211,84,0,0.8); color:#fff; animation:pulse-look 1s infinite; }
+@keyframes pulse-listen { 0%,100%{opacity:1}50%{opacity:0.6} }
+@keyframes pulse-think  { 0%,100%{opacity:1;box-shadow:0 0 8px rgba(142,68,173,0.3)}50%{opacity:0.7;box-shadow:0 0 16px rgba(142,68,173,0.6)} }
+@keyframes pulse-look   { 0%,100%{opacity:1}50%{opacity:0.7} }
 
-  /* Thoughts panel */
-  .thought-stream {
-    max-height: 60vh;
-    overflow-y: auto;
-    padding-right: 4px;
-  }
-  .thought {
-    padding: 8px 12px;
-    margin-bottom: 6px;
-    background: rgba(20, 25, 45, 0.6);
-    border-left: 3px solid rgba(52, 152, 219, 0.4);
-    border-radius: 0 6px 6px 0;
-    font-size: 13px;
-    line-height: 1.4;
-  }
-  .thought .category {
-    font-size: 9px;
-    color: rgba(52, 152, 219, 0.6);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 2px;
-  }
-  .thought .time {
-    font-size: 10px;
-    color: rgba(140, 155, 180, 0.4);
-    float: right;
-  }
+/* ─── Identity Bar ───────────────────────────────────── */
+.identity-bar {
+  background: var(--surface);
+  display:flex; align-items:center; justify-content:space-around;
+  padding:4px 10px; gap:4px;
+  border-top:1px solid var(--border);
+  overflow:hidden; flex-shrink:0;
+}
+.id-item { display:flex; flex-direction:column; align-items:center; font-size:9px; color:var(--text-dim); gap:1px; }
+.id-value { font-size:13px; font-weight:700; color:rgba(100,220,255,0.9); }
+.id-value-warm { color:rgba(241,196,15,0.9); }
+.id-value-green { color:rgba(46,204,113,0.85); }
 
-  /* Chat panel */
-  .chat-messages {
-    max-height: 50vh;
-    overflow-y: auto;
-    margin-bottom: 8px;
-  }
-  .msg {
-    max-width: 85%;
-    padding: 8px 12px;
-    border-radius: 12px;
-    font-size: 13px;
-    line-height: 1.4;
-    margin-bottom: 6px;
-    word-wrap: break-word;
-  }
-  .msg-user {
-    align-self: flex-end;
-    margin-left: auto;
-    background: #2563eb;
-    color: white;
-    border-bottom-right-radius: 4px;
-    text-align: right;
-  }
-  .msg-wattson {
-    background: rgba(30, 35, 55, 0.9);
-    border: 1px solid rgba(100, 100, 140, 0.2);
-    border-bottom-left-radius: 4px;
-  }
-  .msg-system {
-    text-align: center;
-    color: rgba(160, 175, 200, 0.5);
-    font-size: 11px;
-    margin: 8px 0;
-  }
-  .chat-input-area {
-    display: flex;
-    gap: 8px;
-  }
-  .chat-input {
-    flex: 1;
-    background: rgba(25, 30, 50, 0.9);
-    border: 1px solid rgba(100, 100, 140, 0.3);
-    border-radius: 20px;
-    padding: 10px 16px;
-    color: #e0e8f0;
-    font-size: 14px;
-    font-family: inherit;
-    outline: none;
-  }
-  .chat-input:focus { border-color: rgba(52, 152, 219, 0.5); }
-  .send-btn {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    background: #2563eb;
-    border: none;
-    color: white;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  .send-btn:disabled { opacity: 0.3; }
-  .typing { color: rgba(52, 152, 219, 0.6); font-style: italic; font-size: 12px; padding: 4px 0; }
+/* ─── Tab Bar ────────────────────────────────────────── */
+.tab-bar {
+  display:flex; align-items:stretch;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  overflow-x:auto; flex-shrink:0; scrollbar-width:none;
+  height: var(--tab-h);
+}
+.tab-bar::-webkit-scrollbar { display:none; }
+.tab-btn {
+  flex-shrink:0; padding:0 14px;
+  background:none; border:none; border-bottom:2px solid transparent;
+  color:var(--text-dim); font-family:inherit; font-size:11px;
+  letter-spacing:0.5px; cursor:pointer; text-transform:uppercase;
+  transition:color 0.2s, border-color 0.2s;
+  white-space:nowrap;
+}
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { color:var(--primary); border-bottom-color:var(--primary); }
 
-  .footer {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 10px;
-    color: rgba(140, 155, 180, 0.3);
-  }
-  .footer a { color: rgba(52, 152, 219, 0.5); text-decoration: none; }
+/* ─── Tab Content ────────────────────────────────────── */
+.tab-content {
+  flex:1; overflow:hidden; position:relative;
+}
+.tab-panel {
+  display:none; position:absolute; inset:0;
+  overflow-y:auto; overflow-x:hidden;
+  padding:10px;
+  scrollbar-width:thin;
+  scrollbar-color: rgba(100,100,180,0.3) transparent;
+}
+.tab-panel.active { display:block; }
+
+/* ─── Section header inside panels ──────────────────── */
+.section-hdr {
+  font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--text-faint); margin:10px 0 6px;
+  border-bottom:1px solid var(--border); padding-bottom:4px;
+}
+.section-hdr:first-child { margin-top:0; }
+
+/* ─── Status/Emotions Tab ────────────────────────────── */
+.emotion-row { display:flex; align-items:center; margin-bottom:5px; gap:6px; }
+.emotion-label { font-size:11px; color:var(--text-dim); width:72px; text-align:right; text-transform:capitalize; }
+.emotion-track { flex:1; height:10px; background:rgba(40,40,70,0.5); border-radius:5px; overflow:hidden; }
+.emotion-fill  { height:100%; border-radius:5px; transition:width 0.6s ease, box-shadow 0.6s ease; width:0%; }
+.emotion-fill.active-glow { box-shadow:0 0 8px currentColor; }
+.emotion-value { font-size:11px; font-weight:700; width:36px; }
+
+/* Growth */
+.growth-section { margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+.growth-header  { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.growth-level   { font-size:16px; font-weight:700; color:rgba(100,220,255,0.95); text-shadow:0 0 8px rgba(100,220,255,0.4); }
+.growth-stats   { font-size:11px; color:var(--text-dim); }
+.growth-track   { height:12px; background:rgba(40,40,70,0.6); border-radius:6px; overflow:hidden; margin-bottom:6px; }
+.growth-fill    { height:100%; background:linear-gradient(90deg,rgba(60,120,200,0.8),rgba(100,220,255,1)); border-radius:6px; transition:width 1s ease; width:0%; box-shadow:0 0 10px rgba(100,180,255,0.5); }
+.growth-fill.pulse-glow { animation:growthPulse 2s ease-in-out infinite; }
+@keyframes growthPulse { 0%,100%{box-shadow:0 0 10px rgba(100,180,255,0.5)}50%{box-shadow:0 0 22px rgba(100,220,255,0.9)} }
+.growth-today { font-size:11px; color:rgba(100,220,255,0.8); margin-top:2px; }
+.week-dots { display:flex; gap:3px; align-items:flex-end; height:22px; margin-top:4px; }
+.week-dot  { width:5px; min-height:2px; background:rgba(100,180,255,0.5); border-radius:1px; transition:height 0.5s ease; }
+
+/* Sensor array */
+.sensor-array { margin-top:8px; padding-top:6px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:4px; }
+.sa-row { display:flex; gap:6px; align-items:center; font-size:11px; color:var(--text); }
+.sa-cell { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
+.sa-cell.sa-wide { flex:2; }
+.sa-cell.sa-full { flex:1 0 100%; }
+.sa-label { font-size:9px; letter-spacing:0.5px; color:var(--text-faint); text-transform:uppercase; flex-shrink:0; }
+.sa-val   { font-weight:700; font-size:12px; }
+.sa-unit  { font-size:9px; color:var(--text-faint); }
+.sa-xyz   { font-size:10px; color:rgba(160,180,210,0.7); display:flex; gap:3px; flex:1; }
+.sa-xyz span { color:rgba(200,220,255,0.85); font-weight:700; }
+.sa-compass { font-size:12px; font-weight:700; color:rgba(100,220,200,0.9); margin-left:auto; }
+.sa-divider { font-size:9px; text-align:center; letter-spacing:2px; color:rgba(80,120,180,0.4); padding:2px 0; }
+.sa-lux-track { flex:1; height:4px; background:rgba(255,200,0,0.1); border-radius:2px; overflow:hidden; }
+.sa-lux-fill  { height:100%; background:linear-gradient(90deg,#f1c40f,#fff); border-radius:2px; transition:width 1s ease; width:0%; }
+.sv-temp     { color:#e67e22; }
+.sv-battery  { color:#2ecc71; }
+.sv-battery-low { color:#e74c3c; }
+.sv-ram      { color:#5dade2; }
+.sv-light    { color:#f1c40f; }
+.sv-motion   { color:rgba(130,200,255,0.9); }
+.sv-gyro     { color:rgba(180,130,255,0.9); }
+.sv-magnet   { color:rgba(100,220,200,0.9); }
+.sv-pressure { color:rgba(100,220,100,0.9); }
+.sv-proximity{ color:rgba(255,180,80,0.9); }
+.sv-hr       { color:rgba(255,100,120,0.9); }
+
+/* Skills */
+.skills-section { margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
+.skills-caps { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
+.cap-badge {
+  font-size:10px; padding:2px 7px; border-radius:10px;
+  background:rgba(30,30,60,0.6); border:1px solid rgba(100,120,180,0.18);
+  color:rgba(120,130,160,0.5); letter-spacing:0.04em;
+}
+.cap-badge.unlocked {
+  border-color:rgba(80,200,100,0.55); color:rgba(90,225,110,0.95);
+  background:rgba(15,45,25,0.75); box-shadow:0 0 6px rgba(80,200,100,0.18);
+}
+@keyframes capUnlock {
+  0%{transform:scale(1);box-shadow:0 0 0 rgba(80,200,100,0)}
+  40%{transform:scale(1.12);box-shadow:0 0 12px rgba(80,200,100,0.7)}
+  100%{transform:scale(1);box-shadow:0 0 6px rgba(80,200,100,0.18)}
+}
+.cap-badge.just-unlocked { animation:capUnlock 0.6s ease-out; }
+.skills-feed { font-size:10px; }
+.skill-entry { display:flex; gap:5px; margin-bottom:2px; align-items:baseline; }
+.skill-icon-works { color:rgba(80,220,100,0.9); flex-shrink:0; }
+.skill-icon-fail  { color:rgba(220,80,80,0.7); flex-shrink:0; }
+.skill-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-dim); }
+.skills-total { margin-top:4px; color:rgba(100,180,255,0.55); font-size:10px; }
+
+/* Watson's Eye */
+.eye-section { margin-top:10px; padding-top:8px; border-top:1px solid rgba(100,180,255,0.10); }
+.eye-header  { font-size:10px; color:rgba(100,180,255,0.55); letter-spacing:0.08em; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center; }
+.eye-age     { color:var(--text-faint); font-size:9px; }
+.eye-frame   { position:relative; width:100%; border-radius:6px; overflow:hidden; border:1px solid rgba(100,180,255,0.18); background:rgba(10,10,25,0.8); aspect-ratio:16/9; }
+.eye-img     { width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.92) contrast(1.05); }
+.eye-overlay { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(6,4,18,0.85)); padding:10px 8px 6px; font-size:9px; color:rgba(180,190,220,0.75); line-height:1.35; font-style:italic; max-height:52px; overflow:hidden; }
+.eye-none    { color:rgba(100,100,130,0.5); font-size:10px; padding:14px 0; text-align:center; }
+@keyframes eyePulse { 0%,100%{border-color:rgba(100,180,255,0.18)}50%{border-color:rgba(100,220,100,0.55)} }
+.eye-frame.fresh { animation:eyePulse 1.2s ease-in-out; }
+/* Vision + Voice controls */
+.vision-controls { display:flex; gap:5px; margin-top:6px; }
+.vision-btn  { flex:1; background:rgba(100,180,255,0.10); border:1px solid rgba(100,180,255,0.22); color:rgba(140,200,255,0.85); border-radius:4px; padding:5px 0; font-size:10px; letter-spacing:0.05em; text-align:center; cursor:pointer; user-select:none; }
+.vision-btn.busy { background:rgba(100,180,255,0.20); color:rgba(180,220,255,0.7); }
+.vision-btn:active { background:rgba(100,180,255,0.25); }
+.voice-btn   { background:rgba(255,100,80,0.10); border:1px solid rgba(255,100,80,0.22); color:rgba(255,150,130,0.85); border-radius:4px; padding:5px 9px; font-size:12px; cursor:pointer; }
+.voice-btn.recording { background:rgba(255,60,40,0.28); border-color:rgba(255,80,60,0.55); animation:eyePulse 1s ease-in-out infinite; }
+.voice-btn:disabled { opacity:0.45; cursor:default; }
+.vision-status { font-size:9px; color:rgba(100,200,180,0.7); margin-top:4px; font-style:italic; min-height:13px; }
+
+/* Hardware bars (Silicon sub-tab) */
+.hw-row      { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:11px; color:var(--text-dim); }
+.hw-label    { color:var(--text-faint); min-width:60px; }
+.hw-bar-track{ flex:1; height:6px; background:rgba(30,35,50,0.8); border-radius:3px; margin:0 8px; overflow:hidden; }
+.hw-bar-fill { height:100%; border-radius:3px; transition:width 0.5s ease; }
+.hw-value    { min-width:50px; text-align:right; font-size:10px; }
+.hw-cores    { display:flex; gap:3px; margin:6px 0; justify-content:center; }
+.hw-core     { width:16px; height:16px; border-radius:3px; background:rgba(30,35,50,0.8); position:relative; overflow:hidden; }
+.hw-core-fill{ position:absolute; bottom:0; left:0; width:100%; background:#3498db; transition:height 0.5s ease; }
+.hw-core-lbl { position:absolute; width:100%; text-align:center; font-size:6px; color:rgba(255,255,255,0.6); top:1px; z-index:1; }
+
+/* ─── Thoughts Tab ───────────────────────────────────── */
+#tab-thoughts {
+  display:flex; flex-direction:column; gap:0; padding:0;
+}
+.thoughts-toolbar {
+  display:flex; gap:6px; align-items:center; padding:8px 10px;
+  border-bottom:1px solid var(--border); flex-shrink:0;
+  flex-wrap:wrap;
+}
+.thoughts-search {
+  flex:1; min-width:100px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:6px;
+  color:var(--text); font-family:inherit; font-size:11px;
+  padding:5px 10px; outline:none;
+}
+.thoughts-search::placeholder { color:var(--text-faint); }
+.cat-chips { display:flex; gap:4px; flex-wrap:wrap; flex:2; }
+.cat-chip  {
+  font-size:9px; padding:2px 7px; border-radius:10px; cursor:pointer;
+  border:1px solid var(--border); color:var(--text-dim);
+  background:transparent; transition:all 0.15s; white-space:nowrap;
+}
+.cat-chip.active { background:rgba(100,100,200,0.25); border-color:rgba(100,150,255,0.5); color:var(--text); }
+.thoughts-list {
+  flex:1; overflow-y:auto; padding:4px 8px 8px;
+  scrollbar-width:thin; scrollbar-color:rgba(100,100,180,0.3) transparent;
+}
+.thought-line {
+  font-size:11px; line-height:1.5;
+  padding:4px 8px; border-radius:4px; margin-bottom:2px;
+  opacity:0; animation:fadeIn 0.3s ease forwards;
+  word-break:break-word; cursor:pointer;
+  transition:background 0.15s;
+  display:grid; grid-template-columns:auto auto 1fr auto; gap:4px; align-items:baseline;
+}
+.thought-line:hover { background:rgba(100,140,200,0.12); }
+.thought-line.hidden { display:none; }
+@keyframes fadeIn { to { opacity:1; } }
+.thought-cat-badge {
+  font-size:8px; padding:1px 5px; border-radius:6px; border:1px solid currentColor;
+  font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+  flex-shrink:0; opacity:0.7;
+}
+.thought-time  { color:var(--text-faint); font-size:9px; flex-shrink:0; }
+.thought-text  { color:var(--text); min-width:0; }
+.thought-score { font-size:9px; color:rgba(241,196,15,0.6); flex-shrink:0; }
+
+/* Category colors */
+.cat-STUDY          { border-left:3px solid #9b59b6; background:rgba(155,89,182,0.06); }
+.cat-CURIOSITY, .cat-CURIOSITY_DEEP { border-left:3px solid #3498db; background:rgba(52,152,219,0.06); }
+.cat-EXPERIMENT     { border-left:3px solid #2ecc71; background:rgba(46,204,113,0.06); }
+.cat-HARDWARE_EXPLORE{ border-left:3px solid #1abc9c; background:rgba(26,188,156,0.06); }
+.cat-SELF_CHECK     { border-left:3px solid #f1c40f; background:rgba(241,196,15,0.06); }
+.cat-SENSES         { border-left:3px solid #e67e22; background:rgba(230,126,34,0.06); }
+.cat-REFLECTION     { border-left:3px solid #16a085; background:rgba(22,160,133,0.06); }
+.cat-SKILL_PRACTICE { border-left:3px solid #e91e63; background:rgba(233,30,99,0.06); }
+.cat-FACE_DESIGN    { border-left:3px solid #ff6f61; background:rgba(255,111,97,0.06); }
+.cat-BODY_AWARENESS { border-left:3px solid #00bcd4; background:rgba(0,188,212,0.06); }
+.cat-VISION         { border-left:3px solid #8e44ad; background:rgba(142,68,173,0.06); }
+.cat-HEARING        { border-left:3px solid #2980b9; background:rgba(41,128,185,0.06); }
+.cat-IDLE_MUSING, .cat-IDLE { border-left:3px solid #607d8b; background:rgba(96,125,139,0.04); }
+.cat-DREAM          { border-left:3px solid #9b59b6; background:rgba(155,89,182,0.12); }
+.cat-VISION         { border-left:3px solid #8e44ad; background:rgba(142,68,173,0.08); }
+
+/* cat chip tints match thought colors */
+.chip-STUDY    { border-color:#9b59b6; color:#c49ee8; }
+.chip-CURIOSITY{ border-color:#3498db; color:#7ec8f0; }
+.chip-EXPERIMENT{ border-color:#2ecc71; color:#7ee8a8; }
+.chip-VISION   { border-color:#8e44ad; color:#c080e8; }
+.chip-DREAM    { border-color:#9b59b6; color:#c49ee8; }
+.chip-SENSES   { border-color:#e67e22; color:#f0a862; }
+.chip-REFLECTION{ border-color:#16a085; color:#5ecdb5; }
+
+/* ─── Memory Tab ─────────────────────────────────────── */
+.memory-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+@media (max-width:400px) { .memory-grid { grid-template-columns:1fr; } }
+.memory-card {
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+  padding:8px 10px; cursor:pointer; transition:border-color 0.2s;
+}
+.memory-card:hover { border-color:rgba(100,150,255,0.35); }
+.mem-type-badge { font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--text-faint); margin-bottom:4px; }
+.mem-duration { font-size:11px; font-weight:700; color:rgba(100,220,255,0.9); }
+.mem-importance { height:3px; border-radius:2px; background:rgba(100,180,255,0.4); margin:5px 0; }
+.mem-importance-fill { height:100%; background:var(--primary); border-radius:2px; transition:width 0.5s; }
+.mem-first-event { font-size:10px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.people-card {
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+  padding:10px; display:flex; align-items:center; gap:10px; margin-bottom:8px;
+}
+.people-avatar {
+  width:38px; height:38px; border-radius:50%; background:rgba(100,100,200,0.3);
+  border:2px solid var(--primary); display:flex; align-items:center; justify-content:center;
+  font-size:16px; flex-shrink:0;
+}
+.people-info { flex:1; min-width:0; }
+.people-name { font-size:13px; font-weight:700; color:var(--text); }
+.people-meta { font-size:10px; color:var(--text-dim); margin-top:2px; }
+.people-topics { display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
+.people-topic { font-size:9px; padding:1px 6px; border-radius:6px; background:rgba(100,100,200,0.15); color:var(--text-dim); }
+.tag-cloud { display:flex; flex-wrap:wrap; gap:5px; padding:4px 0; }
+.tag-item  { font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(80,100,180,0.15); border:1px solid rgba(80,100,180,0.2); color:var(--text-dim); }
+
+/* ─── Creations Tab ──────────────────────────────────── */
+.creations-filter { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+.creation-type-btn {
+  font-size:10px; padding:3px 10px; border-radius:10px; cursor:pointer;
+  border:1px solid var(--border); color:var(--text-dim); background:transparent;
+  font-family:inherit; transition:all 0.15s;
+}
+.creation-type-btn.active { background:var(--primary-dim); border-color:var(--primary); color:var(--primary); }
+.creations-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; }
+@media (max-width:400px) { .creations-grid { grid-template-columns:1fr; } }
+.creation-card {
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+  padding:10px; cursor:pointer; transition:border-color 0.2s, transform 0.15s;
+  display:flex; flex-direction:column; gap:4px;
+}
+.creation-card:hover { border-color:rgba(100,150,255,0.4); transform:translateY(-1px); }
+.creation-type-tag { font-size:9px; text-transform:uppercase; letter-spacing:1px; }
+.creation-title    { font-size:12px; font-weight:700; color:var(--text); line-height:1.3; }
+.creation-preview  { font-size:10px; color:var(--text-dim); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
+.creation-date     { font-size:9px; color:var(--text-faint); margin-top:auto; }
+
+/* Creation expand modal */
+.creation-modal {
+  display:none; position:fixed; inset:0; z-index:200;
+  background:rgba(5,5,20,0.85); align-items:center; justify-content:center; padding:16px;
+}
+.creation-modal.open { display:flex; }
+.creation-modal-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:20px; max-width:540px; width:100%; max-height:80vh; overflow-y:auto;
+  animation:slideUp 0.25s ease-out;
+}
+@keyframes slideUp { from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1} }
+.modal-close { float:right; background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; line-height:1; }
+.modal-body  { font-size:13px; color:var(--text); line-height:1.7; white-space:pre-wrap; margin-top:12px; }
+
+/* ─── Growth Tab ─────────────────────────────────────── */
+.growth-stage-hero {
+  text-align:center; padding:16px 0 10px;
+  border-bottom:1px solid var(--border); margin-bottom:12px;
+}
+.gsh-stage    { font-size:28px; font-weight:700; color:rgba(100,220,255,0.95); text-shadow:0 0 20px rgba(100,220,255,0.4); }
+.gsh-label    { font-size:11px; color:var(--text-dim); margin-top:2px; }
+.gsh-ring-wrap{ position:relative; width:80px; height:80px; margin:10px auto; }
+.gsh-ring     { width:80px; height:80px; }
+.gsh-ring-pct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:rgba(100,220,255,0.9); }
+.domain-bars  { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+.domain-row   { display:flex; align-items:center; gap:8px; font-size:11px; }
+.domain-name  { width:90px; flex-shrink:0; color:var(--text-dim); }
+.domain-track { flex:1; height:8px; background:rgba(40,40,70,0.5); border-radius:4px; overflow:hidden; }
+.domain-fill  { height:100%; border-radius:4px; background:linear-gradient(90deg,rgba(60,120,200,0.7),rgba(100,220,255,0.9)); transition:width 1s ease; }
+.domain-level { width:40px; text-align:right; color:rgba(100,220,255,0.8); font-weight:700; }
+.milestone-list { display:flex; flex-direction:column; gap:6px; }
+.milestone-item {
+  display:flex; gap:10px; align-items:flex-start;
+  padding:6px 8px; border-radius:6px; background:var(--surface2);
+  border-left:3px solid rgba(100,180,255,0.3);
+}
+.milestone-dot  { width:8px; height:8px; border-radius:50%; background:rgba(100,220,255,0.7); flex-shrink:0; margin-top:3px; }
+.milestone-text { font-size:11px; color:var(--text); line-height:1.4; }
+.milestone-date { font-size:9px; color:var(--text-faint); margin-top:2px; }
+
+/* Games section */
+.games-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+.game-card  {
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px;
+}
+.game-name  { font-size:11px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.game-best  { font-size:18px; font-weight:700; color:rgba(241,196,15,0.9); }
+.game-trend { font-size:11px; margin-left:4px; }
+.game-trend.up   { color:#2ecc71; }
+.game-trend.down { color:#e74c3c; }
+.game-label { font-size:9px; color:var(--text-faint); }
+.game-history-row { font-size:10px; color:var(--text-dim); display:flex; gap:6px; align-items:center; padding:3px 0; border-bottom:1px solid var(--border); }
+
+/* ─── Music Widget ───────────────────────────────────── */
+.music-widget {
+  background:var(--surface2); border:1px solid rgba(255,180,80,0.2); border-radius:10px;
+  padding:10px; margin-bottom:10px;
+}
+.music-now  { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.music-icon { font-size:20px; animation:musicBob 0.5s ease-in-out infinite alternate; }
+@keyframes musicBob { from{transform:translateY(0)}to{transform:translateY(-3px)} }
+.music-title  { font-size:13px; font-weight:700; color:rgba(255,200,120,0.9); }
+.music-meta   { font-size:10px; color:var(--text-dim); }
+.music-play-btn {
+  background:rgba(255,180,80,0.15); border:1px solid rgba(255,180,80,0.3); border-radius:6px;
+  color:rgba(255,200,120,0.9); font-family:inherit; font-size:11px;
+  padding:5px 12px; cursor:pointer; transition:background 0.15s;
+}
+.music-play-btn:hover { background:rgba(255,180,80,0.28); }
+.music-comp-list { font-size:10px; color:var(--text-dim); display:flex; flex-direction:column; gap:3px; }
+.music-comp-item { padding:3px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+.music-comp-item:hover { color:var(--text); }
+
+/* ─── Brain Tab (Evolution log) ──────────────────────── */
+.evo-timeline { display:flex; flex-direction:column; gap:0; }
+.evo-entry    {
+  padding:8px 10px; border-left:2px solid rgba(241,196,15,0.3);
+  margin-left:8px; position:relative; cursor:pointer;
+}
+.evo-entry::before {
+  content:''; position:absolute; left:-5px; top:12px;
+  width:8px; height:8px; border-radius:50%; background:rgba(241,196,15,0.6);
+}
+.evo-entry:hover { background:rgba(241,196,15,0.04); }
+.evo-ts     { font-size:9px; color:var(--text-faint); margin-bottom:2px; }
+.evo-file   { font-size:10px; color:rgba(100,180,255,0.8); margin-bottom:3px; }
+.evo-desc   { font-size:11px; color:var(--text); line-height:1.4; }
+.evo-patch  {
+  display:none; margin-top:8px; padding:8px; border-radius:6px;
+  background:rgba(0,0,0,0.3); font-size:10px; font-family:monospace;
+  white-space:pre-wrap; overflow-x:auto; border:1px solid var(--border);
+}
+.evo-entry.expanded .evo-patch { display:block; }
+.patch-add { color:#2ecc71; }
+.patch-del { color:#e74c3c; }
+.patch-ctx { color:var(--text-faint); }
+
+/* Hall of fame */
+.hof-card {
+  border-left:3px solid var(--primary); padding:6px 10px;
+  background:rgba(255,255,255,0.02); border-radius:0 6px 6px 0;
+  margin-bottom:6px;
+}
+.hof-row   { display:flex; justify-content:space-between; margin-bottom:3px; }
+.hof-cat   { font-size:10px; color:var(--text-faint); text-transform:uppercase; }
+.hof-score { font-size:10px; font-weight:700; }
+.hof-text  { font-size:12px; color:var(--text); line-height:1.4; }
+.hof-time  { font-size:9px; color:var(--text-faint); margin-top:3px; }
+
+/* ─── Services/Network Tab ───────────────────────────── */
+.service-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:11px; }
+.service-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.dot-green   { background:#2ecc71; box-shadow:0 0 6px rgba(46,204,113,0.6); }
+.dot-red     { background:#e74c3c; box-shadow:0 0 6px rgba(231,76,60,0.6); animation:dot-blink 1.5s infinite; }
+@keyframes dot-blink { 0%,100%{opacity:1}50%{opacity:0.4} }
+.service-name      { color:var(--text-dim); }
+.service-name-down { color:rgba(231,76,60,0.9); }
+.net-device { display:flex; align-items:center; gap:6px; font-size:11px; padding:6px 0; }
+.net-dot    { width:10px; height:10px; border-radius:50%; background:rgba(100,100,140,0.3); }
+.net-name   { color:var(--text); font-weight:600; }
+.net-ip     { color:var(--text-faint); font-size:9px; }
+.net-line   { height:2px; flex:1; background:rgba(100,100,140,0.2); margin:0 6px; }
+.net-line-active { background:rgba(46,204,113,0.4); }
+.experiment-item { font-size:11px; color:var(--text-dim); margin-bottom:3px; padding-left:8px; border-left:2px solid rgba(100,140,180,0.4); }
+.exp-result-works { color:#2ecc71; }
+.exp-result-failed{ color:#e74c3c; }
+.mood-strip  { display:flex; height:22px; border-radius:4px; overflow:hidden; gap:1px; }
+.mood-segment{ flex:1; min-width:2px; border-radius:2px; transition:background 0.5s; position:relative; cursor:default; }
+.mood-segment:hover::after {
+  content:attr(data-mood); position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.85); color:#fff; font-size:9px; padding:2px 4px; border-radius:3px;
+  white-space:nowrap; z-index:10;
+}
+.mood-legend { display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
+.mood-legend-item { display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-dim); }
+.mood-legend-dot  { width:6px; height:6px; border-radius:50%; }
+
+/* ─── Conversations ──────────────────────────────────── */
+.conv-entry    { margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+.conv-entry:last-child { border-bottom:none; }
+.conv-trigger  { font-size:10px; color:var(--text-faint); margin-bottom:3px; font-style:italic; }
+.conv-msg      { font-size:12px; line-height:1.4; margin-bottom:2px; display:flex; gap:6px; }
+.conv-name     { font-weight:700; flex-shrink:0; font-size:11px; }
+.conv-name-watson { color:#e67e22; }
+.conv-text     { color:var(--text-dim); }
+.conv-time     { font-size:9px; color:var(--text-faint); margin-top:2px; }
+.conv-empty    { color:var(--text-faint); font-size:11px; font-style:italic; text-align:center; padding:14px 0; }
+
+/* ─── Personality radar ──────────────────────────────── */
+#personality-radar { width:120px; height:120px; display:block; margin:0 auto; }
+
+/* ─── FABs ───────────────────────────────────────────── */
+.fab-group {
+  position:fixed; bottom:8px; left:8px; display:flex; gap:8px; z-index:30;
+}
+.chat-fab {
+  width:38px; height:38px; border-radius:50%;
+  background:rgba(37,99,235,0.85); border:none; color:white;
+  font-size:16px; cursor:pointer;
+  box-shadow:0 0 12px rgba(37,99,235,0.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.3s;
+}
+.chat-fab:hover { transform:scale(1.1); }
+.fab-journal { background:rgba(155,89,182,0.85); box-shadow:0 0 12px rgba(155,89,182,0.4); }
+.fab-globe   { background:rgba(79,195,247,0.15); border:1px solid rgba(79,195,247,0.4); }
+.fab-motivate{ background:rgba(46,204,113,0.15); border:1px solid rgba(46,204,113,0.4); }
+.fab-evo     { background:rgba(241,196,15,0.15); border:1px solid rgba(241,196,15,0.4); }
+
+/* ─── Self-check ─────────────────────────────────────── */
+.self-check-indicator {
+  position:fixed; bottom:8px; right:8px; width:28px; height:28px;
+  border-radius:50%; z-index:30; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:14px;
+  transition:all 0.3s;
+}
+.self-check-ok   { background:rgba(46,204,113,0.3); box-shadow:0 0 8px rgba(46,204,113,0.4); animation:healthPulse 3s ease-in-out infinite; }
+.self-check-warn { background:rgba(231,76,60,0.4); box-shadow:0 0 10px rgba(231,76,60,0.5); animation:healthWarn 1.5s ease-in-out infinite; }
+@keyframes healthPulse { 0%,100%{box-shadow:0 0 8px rgba(46,204,113,0.3)}50%{box-shadow:0 0 14px rgba(46,204,113,0.6)} }
+@keyframes healthWarn  { 0%,100%{box-shadow:0 0 8px rgba(231,76,60,0.4)}50%{box-shadow:0 0 16px rgba(231,76,60,0.8)} }
+.self-check-popup {
+  display:none; position:fixed; bottom:44px; right:8px;
+  background:rgba(15,15,30,0.97); border:1px solid var(--border); border-radius:8px;
+  padding:10px; z-index:31; font-size:11px; min-width:240px; max-width:320px; max-height:70vh; overflow-y:auto;
+}
+.self-check-popup.visible { display:block; }
+.sc-item { display:flex; align-items:flex-start; gap:6px; margin-bottom:4px; }
+.sc-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.sc-ok   { background:#2ecc71; }
+.sc-fail { background:#e74c3c; }
+
+/* ─── Proactive Toast ────────────────────────────────── */
+.proactive-toast {
+  position:fixed; top:8px; left:8px; right:8px;
+  background:rgba(20,22,40,0.97); border:1px solid rgba(52,152,219,0.3);
+  border-radius:12px; padding:12px 14px; z-index:50;
+  transform:translateY(-120%); transition:transform 0.4s ease-out;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);
+}
+.proactive-toast.visible { transform:translateY(0); }
+.proactive-text    { font-size:13px; color:var(--text); font-style:italic; margin-bottom:8px; line-height:1.4; }
+.proactive-actions { display:flex; gap:8px; }
+.proactive-btn     { padding:5px 14px; border-radius:8px; font-size:12px; border:none; cursor:pointer; font-family:monospace; }
+.proactive-btn-chat   { background:rgba(52,152,219,0.3); color:#3498db; }
+.proactive-btn-dismiss{ background:rgba(100,100,140,0.15); color:var(--text-dim); }
+
+/* ─── Overlays (motivate / evolution) ───────────────── */
+.overlay {
+  position:fixed; inset:0; background:rgba(5,5,20,0.8); z-index:80;
+  display:none; align-items:flex-end; justify-content:center;
+}
+.overlay.open { display:flex; }
+.overlay-sheet {
+  background:rgba(10,12,28,0.99); border:1px solid rgba(46,204,113,0.2);
+  border-bottom:none; border-radius:16px 16px 0 0;
+  padding:16px; width:100%; max-width:520px; max-height:85vh; overflow-y:auto;
+  animation:slideUpMot 0.28s ease-out;
+}
+@keyframes slideUpMot { from{transform:translateY(100%)}to{transform:translateY(0)} }
+.overlay-hdr   { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.overlay-title { font-size:11px; letter-spacing:1.5px; color:rgba(46,204,113,0.8); text-transform:uppercase; }
+.overlay-close { background:none; border:none; color:var(--text-dim); font-size:22px; cursor:pointer; padding:0; line-height:1; }
+.motivate-vitals { font-size:13px; color:var(--text); margin-bottom:14px; display:flex; gap:14px; }
+.motivate-vital-val { font-weight:700; color:rgba(46,204,113,0.9); }
+.motivate-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+.motivate-btn {
+  background:rgba(20,28,50,0.8); border:1px solid rgba(46,204,113,0.2); border-radius:10px;
+  color:var(--text); font-family:monospace; font-size:13px; padding:11px 8px;
+  cursor:pointer; text-align:center; line-height:1.35; transition:background 0.15s,border-color 0.15s;
+}
+.motivate-btn:active { background:rgba(46,204,113,0.18); border-color:rgba(46,204,113,0.5); }
+.motivate-btn.sent   { background:rgba(46,204,113,0.15); border-color:rgba(46,204,113,0.6); color:rgba(46,204,113,1); }
+.motivate-custom { display:flex; gap:8px; margin-bottom:14px; }
+.motivate-input {
+  flex:1; background:rgba(20,28,50,0.6); border:1px solid rgba(46,204,113,0.2); border-radius:8px;
+  color:var(--text); font-family:monospace; font-size:13px; padding:9px 10px; outline:none;
+}
+.motivate-input::placeholder { color:var(--text-faint); }
+.motivate-send { background:rgba(46,204,113,0.18); border:1px solid rgba(46,204,113,0.4); border-radius:8px; color:rgba(46,204,113,0.9); font-family:monospace; font-size:12px; padding:9px 14px; cursor:pointer; }
+.motivate-recent-title { font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; border-top:1px solid rgba(46,204,113,0.1); padding-top:10px; }
+.motivate-recent-item  { font-size:11px; color:var(--text-dim); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+
+/* ─── Responsive Mobile ──────────────────────────────── */
+@media (max-width:600px) {
+  .app-shell { grid-template-columns:1fr; }
+  .col-right  { min-height:60vh; }
+  .tab-btn    { padding:0 10px; font-size:10px; }
+  .creations-grid { grid-template-columns:1fr 1fr; }
+  .games-grid { grid-template-columns:1fr; }
+  .memory-grid{ grid-template-columns:1fr; }
+}
+
+/* ─── Scrollbar ──────────────────────────────────────── */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(100,100,180,0.3); border-radius:3px; }
+
+/* ─── Utility ────────────────────────────────────────── */
+.empty-msg { color:var(--text-faint); font-size:11px; font-style:italic; padding:12px 0; text-align:center; }
 </style>
 </head>
 <body>
+<!-- ═══════════════════════════════════════════════════
+     APP SHELL
+     ═══════════════════════════════════════════════════ -->
+<div class="app-shell">
 
-<div class="header">
-  <div class="eye" id="eye"></div>
-  <div>
-    <div class="title">Wattson</div>
-    <div class="subtitle" id="status">Connecting...</div>
+  <!-- ─── LEFT COLUMN: Face + Identity Bar ──────────── -->
+  <div class="col-left">
+    <div class="panel-face" id="face-panel">
+      <div class="activity-banner activity-IDLE" id="activity-banner">
+        <span id="activity-icon">&#128564;</span>&nbsp;<span id="activity-label">Idle</span>
+      </div>
+      <canvas id="face"></canvas>
+      <canvas id="weather-canvas"></canvas>
+      <div id="edge-glow"></div>
+      <div class="dream-overlay" id="dream-overlay"></div>
+      <div class="dream-indicator" id="dream-indicator">dreaming...</div>
+    </div>
+    <div class="identity-bar" id="identity-bar">
+      <div class="id-item"><span class="id-value id-value-warm" id="watson-age">Day ?</span><span>age</span></div>
+      <div class="id-item"><span class="id-value" id="watson-uptime">--</span><span>uptime</span></div>
+      <div class="id-item"><span class="id-value id-value-green" id="last-chat">never</span><span>last chat</span></div>
+      <div class="id-item"><span class="id-value" id="mood-badge">--</span><span>mood</span></div>
+      <div class="id-item"><span class="id-value" id="ambient-badge" style="font-size:11px;">--</span><span>ambient</span></div>
+      <div class="id-item" id="face-actor-item" style="display:none;"><span class="id-value" id="face-actor-badge" style="font-size:10px;color:rgba(255,200,150,0.8);">--</span><span>face</span></div>
+    </div>
+  </div>
+
+  <!-- ─── RIGHT COLUMN: Tabbed panels ──────────────── -->
+  <div class="col-right">
+    <div class="tab-bar" id="tab-bar">
+      <button class="tab-btn active" data-tab="status">Status</button>
+      <button class="tab-btn" data-tab="thoughts">Thoughts</button>
+      <button class="tab-btn" data-tab="memory">Memory</button>
+      <button class="tab-btn" data-tab="creations">Creations</button>
+      <button class="tab-btn" data-tab="growth">Growth</button>
+      <button class="tab-btn" data-tab="network">Network</button>
+      <button class="tab-btn" data-tab="brain">Brain</button>
+    </div>
+    <div class="tab-content">
+
+      <!-- ── STATUS TAB ─────────────────────────────── -->
+      <div class="tab-panel active" id="tab-status">
+        <div class="section-hdr">Emotional State</div>
+        <div id="emotion-bars"></div>
+
+        <div class="growth-section">
+          <div class="growth-header">
+            <span class="growth-level" id="growth-level">--</span>
+            <span class="growth-stats" id="growth-stats"></span>
+          </div>
+          <div class="growth-track"><div class="growth-fill" id="growth-fill"></div></div>
+          <div class="growth-today" id="growth-today"></div>
+          <div class="week-dots" id="week-dots"></div>
+        </div>
+
+        <div class="skills-section">
+          <div class="section-hdr">Capabilities</div>
+          <div class="skills-caps" id="skills-caps"></div>
+          <div class="skills-feed" id="skills-feed"></div>
+        </div>
+
+        <div class="eye-section" id="eye-section">
+          <div class="eye-header">
+            <span>&#9673; WATSON'S EYE (CAMERA)</span>
+            <span class="eye-age" id="eye-age"></span>
+          </div>
+          <div class="eye-frame" id="eye-frame">
+            <span class="eye-none" id="eye-none">No camera photo yet</span>
+            <img class="eye-img" id="eye-img" alt="Watson selfcam" style="display:none;" />
+            <div class="eye-overlay" id="eye-desc" style="display:none;"></div>
+          </div>
+          <div class="vision-controls">
+            <label class="vision-btn" id="vision-btn-label" for="vision-capture">&#128247; Analyze Photo</label>
+            <input type="file" id="vision-capture" accept="image/*" capture="environment" style="display:none;" onchange="captureAndAnalyze(this)">
+            <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Voice input — tap to record, tap again to stop">&#127908;</button>
+          </div>
+          <div class="vision-status" id="vision-status"></div>
+        </div>
+
+        <div class="section-hdr">Silicon</div>
+        <div class="hw-cores" id="hw-cores"></div>
+        <div class="hw-row"><span class="hw-label">CPU L</span><div class="hw-bar-track"><div class="hw-bar-fill" id="hw-cpu-little" style="width:0%;background:#3498db;"></div></div><span class="hw-value" id="hw-cpu-little-val">--</span></div>
+        <div class="hw-row"><span class="hw-label">CPU B</span><div class="hw-bar-track"><div class="hw-bar-fill" id="hw-cpu-big" style="width:0%;background:#e67e22;"></div></div><span class="hw-value" id="hw-cpu-big-val">--</span></div>
+        <div class="hw-row"><span class="hw-label">GPU</span><div class="hw-bar-track"><div class="hw-bar-fill" id="hw-gpu" style="width:0%;background:#9b59b6;"></div></div><span class="hw-value" id="hw-gpu-val">--</span></div>
+        <div class="hw-row"><span class="hw-label">RAM</span><div class="hw-bar-track"><div class="hw-bar-fill" id="hw-ram" style="width:0%;background:#2ecc71;"></div></div><span class="hw-value" id="hw-ram-val">--</span></div>
+        <div class="hw-row" style="margin-top:2px;"><span class="hw-label" style="color:var(--text-faint);">Hotspot</span><span id="hw-hotspot" style="font-size:10px;color:#e67e22;">--</span></div>
+
+        <div class="sensor-array" id="sensors">
+          <div class="section-hdr">Sensor Array</div>
+          <div class="sa-row">
+            <div class="sa-cell"><span class="sa-label">TEMP</span><span class="sa-val sv-temp" id="s-temp">--</span></div>
+            <div class="sa-cell"><span class="sa-label">BAT</span><span class="sa-val sv-battery" id="s-battery">--</span></div>
+            <div class="sa-cell"><span class="sa-label">RAM</span><span class="sa-val sv-ram" id="s-ram">--</span></div>
+          </div>
+          <div class="sa-row">
+            <div class="sa-cell sa-wide">
+              <span class="sa-label">LIGHT</span>
+              <div class="sa-lux-track"><div class="sa-lux-fill" id="s-lux-bar"></div></div>
+              <span class="sa-val sv-light" id="s-light">--</span>
+            </div>
+            <div class="sa-cell"><span class="sa-label">MOTION</span><span class="sa-val sv-motion" id="s-motion">--</span></div>
+          </div>
+          <div class="sa-row">
+            <div class="sa-cell sa-full"><span class="sa-label sv-gyro">GYRO</span><span class="sa-xyz">X<span id="s-gx">--</span> Y<span id="s-gy">--</span> Z<span id="s-gz">--</span></span><span class="sa-val sv-gyro" id="s-gyro-mag">--</span><span class="sa-unit">rad/s</span></div>
+          </div>
+          <div class="sa-row">
+            <div class="sa-cell sa-full"><span class="sa-label sv-magnet">MAG</span><span class="sa-xyz">X<span id="s-mx">--</span> Y<span id="s-my">--</span> Z<span id="s-mz">--</span></span><span class="sa-compass" id="s-compass">--</span></div>
+          </div>
+          <div class="sa-row">
+            <div class="sa-cell"><span class="sa-label sv-pressure">BARO</span><span class="sa-val sv-pressure" id="s-pressure">--</span><span class="sa-unit">hPa</span></div>
+            <div class="sa-cell"><span class="sa-label" style="color:rgba(150,200,255,0.7)">ALT</span><span class="sa-val" style="color:rgba(150,200,255,0.9)" id="s-altitude">--</span><span class="sa-unit">m</span></div>
+            <div class="sa-cell"><span class="sa-label sv-proximity">PROX</span><span class="sa-val sv-proximity" id="s-proximity">--</span></div>
+          </div>
+          <div class="sa-row">
+            <div class="sa-cell sa-full" id="s-hr-row" style="opacity:0.4"><span class="sa-label sv-hr">&#9829; HR</span><span class="sa-val sv-hr" id="s-heartrate">--</span><span class="sa-unit">bpm</span><span style="font-size:9px;color:rgba(255,100,100,0.5);margin-left:4px;">(place finger on sensor)</span></div>
+          </div>
+          <div class="sa-row">
+            <div class="sa-cell sa-full"><span class="sa-label" style="color:rgba(100,200,255,0.75)">WEATHER</span><span class="sa-val" style="color:rgba(180,220,255,0.9);font-size:11px;" id="s-weather">--</span></div>
+          </div>
+          <div class="sa-row">
+            <div class="sa-cell sa-full"><span class="sa-label" style="color:rgba(255,180,100,0.75)">MUSIC</span><span class="sa-val" style="color:rgba(255,200,120,0.9);font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" id="s-music">--</span></div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+          <div class="section-hdr">Personality</div>
+          <canvas id="personality-radar" width="120" height="120"></canvas>
+        </div>
+
+        <div id="conv-section" style="margin-top:10px;">
+          <div class="section-hdr">Recent Conversations</div>
+          <div id="conv-feed"><div class="conv-empty">Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- ── THOUGHTS TAB ───────────────────────────── -->
+      <div class="tab-panel" id="tab-thoughts" style="display:none;padding:0;">
+        <div class="thoughts-toolbar">
+          <input class="thoughts-search" id="thought-search" type="text" placeholder="Search thoughts..." />
+          <div class="cat-chips" id="cat-chips"></div>
+        </div>
+        <div class="thoughts-list" id="thought-stream"></div>
+      </div>
+
+      <!-- ── MEMORY TAB ─────────────────────────────── -->
+      <div class="tab-panel" id="tab-memory" style="display:none;" data-lazy="memory">
+        <div class="section-hdr">Recent Episodes</div>
+        <div class="memory-grid" id="memory-episodes"><div class="empty-msg">Loading episodes...</div></div>
+        <div class="section-hdr">People</div>
+        <div id="memory-people"><div class="empty-msg">Loading...</div></div>
+        <div class="section-hdr">Knowledge Graph</div>
+        <div class="tag-cloud" id="memory-tags"><div class="empty-msg">Loading...</div></div>
+      </div>
+
+      <!-- ── CREATIONS TAB ──────────────────────────── -->
+      <div class="tab-panel" id="tab-creations" style="display:none;" data-lazy="creations">
+        <div class="creations-filter" id="creation-filter">
+          <button class="creation-type-btn active" data-type="all">All</button>
+          <button class="creation-type-btn" data-type="poem">Poems</button>
+          <button class="creation-type-btn" data-type="essay">Essays</button>
+          <button class="creation-type-btn" data-type="dream">Dreams</button>
+          <button class="creation-type-btn" data-type="lyric">Lyrics</button>
+          <button class="creation-type-btn" data-type="art">Art Prompts</button>
+        </div>
+        <div class="creations-grid" id="creations-grid"><div class="empty-msg">Loading creations...</div></div>
+      </div>
+
+      <!-- ── GROWTH TAB ─────────────────────────────── -->
+      <div class="tab-panel" id="tab-growth" style="display:none;" data-lazy="growth">
+        <div class="growth-stage-hero">
+          <div class="gsh-label">Current Stage</div>
+          <div class="gsh-stage" id="gsh-stage">--</div>
+          <div class="gsh-ring-wrap">
+            <svg class="gsh-ring" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(100,100,180,0.15)" stroke-width="6"/>
+              <circle id="gsh-ring-arc" cx="40" cy="40" r="34" fill="none" stroke="rgba(100,220,255,0.8)" stroke-width="6"
+                stroke-dasharray="213.6" stroke-dashoffset="213.6" stroke-linecap="round"
+                transform="rotate(-90 40 40)" style="transition:stroke-dashoffset 1s ease;"/>
+            </svg>
+            <div class="gsh-ring-pct" id="gsh-ring-pct">0%</div>
+          </div>
+          <div class="gsh-label" id="gsh-next">-- toward next stage</div>
+        </div>
+
+        <div class="section-hdr">Domain Mastery</div>
+        <div class="domain-bars" id="domain-bars"><div class="empty-msg">Loading domains...</div></div>
+
+        <div class="section-hdr">Milestones</div>
+        <div class="milestone-list" id="milestone-list"><div class="empty-msg">No milestones yet</div></div>
+
+        <div class="section-hdr">Games</div>
+        <div class="games-grid" id="games-grid"><div class="empty-msg">No game data yet</div></div>
+        <div style="margin-top:8px;" id="game-history"></div>
+
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+          <div class="section-hdr">Music</div>
+          <div id="music-widget-area"><div class="empty-msg">No compositions yet</div></div>
+        </div>
+      </div>
+
+      <!-- ── NETWORK TAB ────────────────────────────── -->
+      <div class="tab-panel" id="tab-network" style="display:none;">
+        <div class="section-hdr">Network</div>
+        <div style="display:flex;align-items:center;gap:0;padding:6px 0;">
+          <div class="net-device"><div class="net-dot dot-green" id="net-phone-dot"></div><div><div class="net-name">Note 9</div><div class="net-ip">.4.37</div></div></div>
+          <div class="net-line" id="net-line-1"></div>
+          <div class="net-device"><div class="net-dot" id="net-mac-dot"></div><div><div class="net-name">Mac</div><div class="net-ip">.4.171</div></div></div>
+          <div class="net-line" id="net-line-2"></div>
+          <div class="net-device"><div class="net-dot" id="net-pi-dot"></div><div><div class="net-name">Pi</div><div class="net-ip">.5.50</div></div></div>
+        </div>
+
+        <div class="section-hdr">Services</div>
+        <div id="service-list"></div>
+
+        <div class="section-hdr">Mood Timeline</div>
+        <div class="mood-strip" id="mood-strip"></div>
+        <div class="mood-legend" id="mood-legend"></div>
+
+        <div class="section-hdr">Recent Discoveries</div>
+        <div id="experiment-list"></div>
+      </div>
+
+      <!-- ── BRAIN TAB ──────────────────────────────── -->
+      <div class="tab-panel" id="tab-brain" style="display:none;" data-lazy="brain">
+        <div class="section-hdr">Evolution Log</div>
+        <div class="evo-timeline" id="evo-timeline"><div class="empty-msg">Loading patches...</div></div>
+        <div class="section-hdr" style="margin-top:14px;">Hall of Fame — Best Thoughts</div>
+        <div id="hof-list"><div class="empty-msg">Loading...</div></div>
+        <div class="section-hdr" style="margin-top:14px;">Growth Metrics</div>
+        <div id="evo-metrics" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+      </div>
+
+    </div><!-- /tab-content -->
+  </div><!-- /col-right -->
+</div><!-- /app-shell -->
+
+<!-- ─── Creation expand modal ─────────────────────── -->
+<div class="creation-modal" id="creation-modal">
+  <div class="creation-modal-box">
+    <button class="modal-close" onclick="closeCreationModal()">&#215;</button>
+    <div id="modal-creation-type" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;"></div>
+    <div id="modal-creation-title" style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;"></div>
+    <div id="modal-creation-date" style="font-size:10px;color:var(--text-faint);margin-bottom:10px;"></div>
+    <div class="modal-body" id="modal-creation-body"></div>
   </div>
 </div>
 
-<div class="stats" id="stats">
-  <div class="stat"><div class="stat-label">Temp</div><div class="stat-value" id="s-temp">--</div></div>
-  <div class="stat"><div class="stat-label">Battery</div><div class="stat-value" id="s-battery">--</div></div>
-  <div class="stat"><div class="stat-label">RAM Free</div><div class="stat-value" id="s-ram">--</div></div>
-  <div class="stat"><div class="stat-label">Cycles</div><div class="stat-value" id="s-cycles">--</div></div>
-  <div class="stat"><div class="stat-label">Thermal</div><div class="stat-value" id="s-thermal">--</div></div>
-  <div class="stat"><div class="stat-label">Uptime</div><div class="stat-value" id="s-uptime">--</div></div>
-</div>
-
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('thoughts')">Thoughts</button>
-  <button class="tab" onclick="switchTab('chat')">Chat</button>
-</div>
-
-<div class="panel active" id="panel-thoughts">
-  <div class="thought-stream" id="thought-stream">
-    <div class="msg-system">Waiting for Wattson's thoughts...</div>
+<!-- ─── Evolution overlay (full sheet) ───────────── -->
+<div class="overlay" id="evolution-overlay" onclick="if(event.target===this)closeEvolution()">
+  <div class="overlay-sheet">
+    <div class="overlay-hdr">
+      <div class="overlay-title">&#9733; Watson's Evolution</div>
+      <button class="overlay-close" onclick="closeEvolution()">&#215;</button>
+    </div>
+    <div id="evo-overlay-content" style="padding:0 4px 8px;">
+      <div class="empty-msg">Loading...</div>
+    </div>
   </div>
 </div>
 
-<div class="panel" id="panel-chat">
-  <div class="chat-messages" id="chat-messages">
-    <div class="msg-system">Talk to Wattson. Type a message below.</div>
-  </div>
-  <div id="typing-indicator"></div>
-  <div class="chat-input-area">
-    <input class="chat-input" id="chat-input" placeholder="Talk to Wattson..."
-      onkeydown="if(event.key==='Enter')sendChat()">
-    <button class="send-btn" id="send-btn" onclick="sendChat()">&#9654;</button>
+<!-- ─── Motivate overlay ──────────────────────────── -->
+<div class="overlay" id="motivate-overlay" onclick="if(event.target===this)closeMotivate()">
+  <div class="overlay-sheet">
+    <div class="overlay-hdr">
+      <div class="overlay-title">&#9889; Motivate Watson</div>
+      <button class="overlay-close" onclick="closeMotivate()">&#215;</button>
+    </div>
+    <div class="motivate-vitals">
+      <span>&#127777; <span class="motivate-vital-val" id="mot-temp">--</span></span>
+      <span>&#129504; <span class="motivate-vital-val" id="mot-mood">--</span></span>
+      <span>&#128267; <span class="motivate-vital-val" id="mot-bat">--</span></span>
+    </div>
+    <div class="motivate-grid">
+      <button class="motivate-btn" id="mbtn-THERMAL_SCAN" onclick="sendMotivation('THERMAL_SCAN')">&#127777;<br>Thermal Scan</button>
+      <button class="motivate-btn" id="mbtn-DIAGNOSTICS" onclick="sendMotivation('DIAGNOSTICS')">&#128300;<br>Diagnostics</button>
+      <button class="motivate-btn" id="mbtn-SNAPSHOT" onclick="sendMotivation('SNAPSHOT')">&#128247;<br>Snapshot</button>
+      <button class="motivate-btn" id="mbtn-DEEP_REFLECT" onclick="sendMotivation('DEEP_REFLECT')">&#128172;<br>Deep Reflect</button>
+      <button class="motivate-btn" id="mbtn-DREAM_NOW" onclick="sendMotivation('DREAM_NOW')">&#127775;<br>Dream Now</button>
+      <button class="motivate-btn" id="mbtn-STUDY_BOOST" onclick="sendMotivation('STUDY_BOOST')">&#128218;<br>Study Boost</button>
+      <button class="motivate-btn" id="mbtn-SET_GOAL" onclick="sendMotivation('SET_GOAL')">&#127919;<br>Set a Goal</button>
+      <button class="motivate-btn" id="mbtn-SPEAK_THOUGHT" onclick="speakThought()">&#128266;<br>Speak Aloud</button>
+    </div>
+    <div class="motivate-custom">
+      <input class="motivate-input" id="mot-custom" type="text" placeholder="Encourage Watson..." maxlength="200">
+      <button class="motivate-send" onclick="sendMotivation('ENCOURAGE',document.getElementById('mot-custom').value)">Send &#128172;</button>
+    </div>
+    <div class="motivate-recent-title">Recent Motivations</div>
+    <div id="mot-recent-list"><div class="empty-msg">None yet</div></div>
   </div>
 </div>
 
-<div class="footer">
-  <a href="https://github.com/chatde/wattson">Wattson</a> — Autonomous Phone AI
+<!-- ─── FABs ──────────────────────────────────────── -->
+<div class="fab-group">
+  <button class="chat-fab" onclick="window.open('/chat','_blank')" title="Chat with Watson">&#128172;</button>
+  <button class="chat-fab fab-journal" onclick="window.open('/journal','_blank')" title="Journal">&#128214;</button>
+  <button class="chat-fab fab-globe" onclick="window.location.href='/graph'" title="Mind Graph">&#127760;</button>
+  <button class="chat-fab fab-motivate" onclick="openMotivate()" title="Motivate">&#128170;</button>
+  <button class="chat-fab fab-evo" onclick="openEvolution()" title="Evolution">&#9733;</button>
 </div>
 
+<!-- ─── Self-check ────────────────────────────────── -->
+<div class="self-check-indicator self-check-ok" id="self-check" onclick="toggleSelfCheck()">&#10003;</div>
+<div class="self-check-popup" id="self-check-popup"></div>
+
+<!-- ─── Proactive toast ───────────────────────────── -->
+<div class="proactive-toast" id="proactive-toast">
+  <div class="proactive-text" id="proactive-text"></div>
+  <div class="proactive-actions">
+    <button class="proactive-btn proactive-btn-chat" onclick="respondToProactive()">Chat</button>
+    <button class="proactive-btn proactive-btn-dismiss" onclick="dismissProactive()">Later</button>
+  </div>
+</div>
 <script>
-const eye = document.getElementById('eye');
-const statusEl = document.getElementById('status');
-let currentTab = 'thoughts';
-let chatHistory = [];
-let sending = false;
-let lastThoughtCount = 0;
+'use strict';
+// ═══════════════════════════════════════════════════════════════════════
+// Watson Dashboard — Phase 17
+// ═══════════════════════════════════════════════════════════════════════
 
-function switchTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
-  document.getElementById('panel-' + tab).classList.add('active');
-  if (tab === 'chat') document.getElementById('chat-input').focus();
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-// ─── Poll State ──────────────────────────────────────────────────────────────
-async function pollState() {
+// ─── Canvas setup ───────────────────────────────────────────────────
+const canvas    = document.getElementById('face');
+const ctx       = canvas.getContext('2d');
+const wxCanvas  = document.getElementById('weather-canvas');
+const wxCtx     = wxCanvas.getContext('2d');
+const edgeGlowEl= document.getElementById('edge-glow');
+
+// ─── Emotion Colors ─────────────────────────────────────────────────
+const EMOTION_COLORS = {
+  joy:'#2ecc71', curiosity:'#3498db', focus:'#9b59b6',
+  anxiety:'#e74c3c', excitement:'#f1c40f', serenity:'#5dade2',
+  discomfort:'#e67e22', fatigue:'#95a5a6', confusion:'#1abc9c',
+};
+const EMOTIONS = ['joy','curiosity','focus','anxiety','excitement','serenity','discomfort','fatigue','confusion'];
+
+// ─── Mood Colors ────────────────────────────────────────────────────
+const MOOD_COLORS = {
+  joy:'#2ecc71', curiosity:'#e67e22', focus:'#9b59b6',
+  anxiety:'#e74c3c', excitement:'#f1c40f', serenity:'#3498db',
+  discomfort:'#c0392b', fatigue:'#95a5a6', confusion:'#1abc9c',
+};
+
+// ─── State ──────────────────────────────────────────────────────────
+const state = {
+  category:'IDLE_MUSING', mood:'calm', temp:36, battery:80,
+  talking:false, ramFree:640, ollamaAlive:true,
+  dominantEmotion:null, emotions:null, expression:null,
+  lastThought:null, services:null, growth:null,
+  sensorLux:null, sensorIsMoving:false, sensorHR:null,
+  weather:null, faceIdentity:null, music:null,
+  ambientMusic:false, currentBPM:0,
+};
+
+// ─── API Cache (5s) ─────────────────────────────────────────────────
+const apiCache = new Map();
+async function cachedFetch(url, maxAge = 5000) {
+  const now = Date.now();
+  const c = apiCache.get(url);
+  if (c && now - c.ts < maxAge) return c.data;
   try {
-    const res = await fetch('/api/state');
-    if (!res.ok) throw new Error();
+    const res = await fetch(url);
+    if (!res.ok) return null;
     const data = await res.json();
+    apiCache.set(url, { ts: now, data });
+    return data;
+  } catch { return null; }
+}
 
-    // Update stats
-    const tempEl = document.getElementById('s-temp');
-    tempEl.textContent = data.temp ? data.temp + 'C' : '--';
-    tempEl.className = 'stat-value ' + (data.temp > 60 ? 'hot' : data.temp > 45 ? 'warm' : 'cool');
+// ─── Expression Config ──────────────────────────────────────────────
+const EXPRESSIONS = {
+  // ── original ──
+  STUDY:              {eyeOpen:0.6,eyeNarrow:0.3,pupilSize:0.8,mouthCurve:-0.1,eyebrowAngle:-0.4,sparkle:false,blushIntensity:0,bgColor:[88,60,160],label:'Studying...'},
+  CURIOSITY:          {eyeOpen:1.0,eyeNarrow:0.0,pupilSize:1.1,mouthCurve:0.3,eyebrowAngle:0.6,sparkle:true,blushIntensity:0,bgColor:[40,100,200],label:'Curious!'},
+  CURIOSITY_DEEP:     {eyeOpen:0.9,eyeNarrow:0.1,pupilSize:1.0,mouthCurve:0.2,eyebrowAngle:0.3,sparkle:false,blushIntensity:0,bgColor:[30,80,180],label:'Deep thought...'},
+  REFLECTION:         {eyeOpen:0.3,eyeNarrow:0.0,pupilSize:0.7,mouthCurve:0.15,eyebrowAngle:0.1,sparkle:false,blushIntensity:0,bgColor:[180,130,50],label:'Reflecting...'},
+  BODY_AWARENESS:     {eyeOpen:0.7,eyeNarrow:0.0,pupilSize:0.9,mouthCurve:0.0,eyebrowAngle:-0.2,sparkle:false,blushIntensity:0.1,bgColor:[40,140,80],label:'Body check'},
+  HARDWARE_EXPLORE:   {eyeOpen:0.85,eyeNarrow:0.15,pupilSize:1.0,mouthCurve:0.25,eyebrowAngle:0.4,sparkle:true,blushIntensity:0,bgColor:[30,150,150],label:'Exploring!'},
+  SELF_CHECK:         {eyeOpen:0.75,eyeNarrow:0.0,pupilSize:0.85,mouthCurve:0.0,eyebrowAngle:-0.1,sparkle:false,blushIntensity:0,bgColor:[180,170,40],label:'Self-check'},
+  IDLE_MUSING:        {eyeOpen:0.5,eyeNarrow:0.0,pupilSize:0.75,mouthCurve:0.1,eyebrowAngle:0.0,sparkle:false,blushIntensity:0,bgColor:[140,80,120],label:'Daydreaming...'},
+  SKILL_PRACTICE:     {eyeOpen:0.8,eyeNarrow:0.1,pupilSize:0.9,mouthCurve:0.15,eyebrowAngle:-0.2,sparkle:false,blushIntensity:0,bgColor:[50,120,160],label:'Practicing'},
+  EXPERIMENT:         {eyeOpen:0.95,eyeNarrow:0.05,pupilSize:1.05,mouthCurve:0.3,eyebrowAngle:0.5,sparkle:true,blushIntensity:0.05,bgColor:[60,160,130],label:'Experimenting!'},
+  VISION:             {eyeOpen:1.0,eyeNarrow:0.0,pupilSize:1.2,mouthCurve:0.2,eyebrowAngle:0.3,sparkle:true,blushIntensity:0,bgColor:[142,68,173],label:'Looking...'},
+  HEARING:            {eyeOpen:0.4,eyeNarrow:0.0,pupilSize:0.7,mouthCurve:0.0,eyebrowAngle:0.5,sparkle:false,blushIntensity:0,bgColor:[41,128,185],label:'Listening...'},
+  ALERT:              {eyeOpen:1.0,eyeNarrow:0.0,pupilSize:1.2,mouthCurve:-0.2,eyebrowAngle:-0.8,sparkle:false,blushIntensity:0,bgColor:[180,40,40],label:'ALERT!'},
+  TALKING:            {eyeOpen:0.8,eyeNarrow:0.0,pupilSize:0.9,mouthCurve:0.0,eyebrowAngle:0.1,sparkle:false,blushIntensity:0,bgColor:[50,90,170],label:'Speaking'},
+  SLEEPING:           {eyeOpen:0.05,eyeNarrow:0.0,pupilSize:0.5,mouthCurve:0.1,eyebrowAngle:0.0,sparkle:false,blushIntensity:0,bgColor:[20,20,40],label:'Zzz...'},
+  SENSES:             {eyeOpen:0.9,eyeNarrow:0.0,pupilSize:1.0,mouthCurve:0.2,eyebrowAngle:0.3,sparkle:true,blushIntensity:0,bgColor:[200,120,50],label:'Sensing...'},
+  FACE_DESIGN:        {eyeOpen:0.7,eyeNarrow:0.1,pupilSize:0.85,mouthCurve:0.2,eyebrowAngle:0.0,sparkle:false,blushIntensity:0.1,bgColor:[180,80,100],label:'Designing...'},
+  // ── new plugin categories ──
+  ANOMALY_CHECK:      {eyeOpen:0.9,eyeNarrow:0.2,pupilSize:1.1,mouthCurve:-0.1,eyebrowAngle:-0.5,sparkle:false,blushIntensity:0,bgColor:[180,60,60],label:'Checking...'},
+  GOAL_CHECK:         {eyeOpen:0.8,eyeNarrow:0.0,pupilSize:0.9,mouthCurve:0.2,eyebrowAngle:0.3,sparkle:false,blushIntensity:0,bgColor:[60,140,100],label:'Goal check'},
+  MAINTENANCE:        {eyeOpen:0.65,eyeNarrow:0.1,pupilSize:0.8,mouthCurve:0.05,eyebrowAngle:-0.1,sparkle:false,blushIntensity:0,bgColor:[100,100,60],label:'Maintaining...'},
+  MAINTENANCE_URGENT: {eyeOpen:1.0,eyeNarrow:0.0,pupilSize:1.15,mouthCurve:-0.15,eyebrowAngle:-0.7,sparkle:false,blushIntensity:0,bgColor:[200,80,40],label:'Urgent fix!'},
+  PHONE_AWARENESS:    {eyeOpen:0.85,eyeNarrow:0.05,pupilSize:1.0,mouthCurve:0.1,eyebrowAngle:0.2,sparkle:false,blushIntensity:0,bgColor:[40,120,160],label:'Observing...'},
+  LEARNING_META:      {eyeOpen:0.85,eyeNarrow:0.1,pupilSize:0.95,mouthCurve:0.15,eyebrowAngle:0.3,sparkle:true,blushIntensity:0,bgColor:[60,80,180],label:'Learning...'},
+  CONTEXT_CHECK:      {eyeOpen:0.7,eyeNarrow:0.0,pupilSize:0.85,mouthCurve:0.05,eyebrowAngle:0.1,sparkle:false,blushIntensity:0,bgColor:[80,100,140],label:'Reading context'},
+  DAILY_REPORT:       {eyeOpen:0.65,eyeNarrow:0.0,pupilSize:0.8,mouthCurve:0.2,eyebrowAngle:0.1,sparkle:false,blushIntensity:0,bgColor:[100,80,140],label:'Reporting...'},
+  WEB_REDDIT:         {eyeOpen:0.9,eyeNarrow:0.0,pupilSize:1.0,mouthCurve:0.25,eyebrowAngle:0.4,sparkle:false,blushIntensity:0,bgColor:[180,90,40],label:'Browsing Reddit'},
+  WEB_WIKI:           {eyeOpen:0.95,eyeNarrow:0.1,pupilSize:1.05,mouthCurve:0.1,eyebrowAngle:0.3,sparkle:true,blushIntensity:0,bgColor:[30,100,170],label:'Reading Wiki'},
+  WEB_NEWS:           {eyeOpen:0.8,eyeNarrow:0.1,pupilSize:0.95,mouthCurve:0.0,eyebrowAngle:0.1,sparkle:false,blushIntensity:0,bgColor:[60,80,120],label:'Reading news'},
+  PHONE_NAVIGATE:     {eyeOpen:0.85,eyeNarrow:0.15,pupilSize:1.0,mouthCurve:0.1,eyebrowAngle:-0.2,sparkle:false,blushIntensity:0,bgColor:[40,110,150],label:'Navigating...'},
+  SCREEN_BROWSE:      {eyeOpen:0.9,eyeNarrow:0.0,pupilSize:1.0,mouthCurve:0.2,eyebrowAngle:0.2,sparkle:false,blushIntensity:0,bgColor:[50,130,130],label:'Browsing...'},
+  PLAY_STORE:         {eyeOpen:0.95,eyeNarrow:0.0,pupilSize:1.1,mouthCurve:0.3,eyebrowAngle:0.4,sparkle:true,blushIntensity:0.05,bgColor:[40,170,80],label:'App shopping!'},
+  APP_CONTROL:        {eyeOpen:0.75,eyeNarrow:0.1,pupilSize:0.9,mouthCurve:0.1,eyebrowAngle:-0.1,sparkle:false,blushIntensity:0,bgColor:[60,120,100],label:'Controlling app'},
+  APP_RESEARCH:       {eyeOpen:0.9,eyeNarrow:0.0,pupilSize:1.0,mouthCurve:0.2,eyebrowAngle:0.3,sparkle:false,blushIntensity:0,bgColor:[70,100,160],label:'App research'},
+  DECIDE:             {eyeOpen:0.7,eyeNarrow:0.15,pupilSize:0.85,mouthCurve:-0.05,eyebrowAngle:-0.3,sparkle:false,blushIntensity:0,bgColor:[100,70,150],label:'Deciding...'},
+  NOTIFICATION_CHECK: {eyeOpen:0.75,eyeNarrow:0.0,pupilSize:0.9,mouthCurve:0.05,eyebrowAngle:0.2,sparkle:false,blushIntensity:0,bgColor:[50,100,140],label:'Checking notifs'},
+  DEEP_STUDY:         {eyeOpen:0.55,eyeNarrow:0.35,pupilSize:0.85,mouthCurve:-0.05,eyebrowAngle:-0.5,sparkle:false,blushIntensity:0,bgColor:[70,50,140],label:'Deep study...'},
+  COUNTERFACTUAL:     {eyeOpen:0.8,eyeNarrow:0.1,pupilSize:0.95,mouthCurve:0.1,eyebrowAngle:0.5,sparkle:false,blushIntensity:0,bgColor:[100,60,160],label:'What if...'},
+  MEMORY_CONSOLIDATE: {eyeOpen:0.4,eyeNarrow:0.0,pupilSize:0.7,mouthCurve:0.1,eyebrowAngle:0.0,sparkle:false,blushIntensity:0,bgColor:[80,80,140],label:'Consolidating...'},
+  MEMORY_RECALL:      {eyeOpen:0.55,eyeNarrow:0.0,pupilSize:0.8,mouthCurve:0.15,eyebrowAngle:0.2,sparkle:false,blushIntensity:0,bgColor:[60,80,160],label:'Remembering...'},
+  COMPOSE:            {eyeOpen:0.7,eyeNarrow:0.0,pupilSize:0.85,mouthCurve:0.3,eyebrowAngle:0.1,sparkle:true,blushIntensity:0.1,bgColor:[140,60,120],label:'Composing...'},
+  SOCIAL_REFLECT:     {eyeOpen:0.6,eyeNarrow:0.0,pupilSize:0.8,mouthCurve:0.25,eyebrowAngle:0.1,sparkle:false,blushIntensity:0.08,bgColor:[120,70,100],label:'Reflecting...'},
+  GREETING:           {eyeOpen:1.0,eyeNarrow:0.0,pupilSize:1.1,mouthCurve:0.45,eyebrowAngle:0.5,sparkle:true,blushIntensity:0.12,bgColor:[80,160,80],label:'Hello!'},
+  MUSIC:              {eyeOpen:0.65,eyeNarrow:0.0,pupilSize:0.85,mouthCurve:0.35,eyebrowAngle:0.1,sparkle:false,blushIntensity:0.05,bgColor:[160,60,120],label:'Vibing...'},
+  EMOTE:              {eyeOpen:0.9,eyeNarrow:0.0,pupilSize:1.0,mouthCurve:0.4,eyebrowAngle:0.4,sparkle:true,blushIntensity:0.15,bgColor:[160,80,40],label:'Expressing!'},
+  SPATIAL:            {eyeOpen:0.85,eyeNarrow:0.0,pupilSize:1.0,mouthCurve:0.1,eyebrowAngle:0.2,sparkle:false,blushIntensity:0,bgColor:[40,120,120],label:'Mapping...'},
+  WEATHER:            {eyeOpen:0.7,eyeNarrow:0.0,pupilSize:0.85,mouthCurve:0.15,eyebrowAngle:0.0,sparkle:false,blushIntensity:0,bgColor:[60,100,160],label:'Weather check'},
+  SELF_EVOLVE:        {eyeOpen:0.9,eyeNarrow:0.05,pupilSize:1.05,mouthCurve:0.2,eyebrowAngle:0.4,sparkle:true,blushIntensity:0.05,bgColor:[120,60,180],label:'Evolving...'},
+  SELF_REFLECTION:    {eyeOpen:0.45,eyeNarrow:0.0,pupilSize:0.75,mouthCurve:0.15,eyebrowAngle:0.05,sparkle:false,blushIntensity:0,bgColor:[160,120,40],label:'Self-reflect...'},
+  DEVIL_ADVOCATE:     {eyeOpen:0.8,eyeNarrow:0.2,pupilSize:0.9,mouthCurve:-0.1,eyebrowAngle:-0.3,sparkle:false,blushIntensity:0,bgColor:[160,40,60],label:"Devil's advocate"},
+  DREAM:              {eyeOpen:0.15,eyeNarrow:0.0,pupilSize:0.65,mouthCurve:0.2,eyebrowAngle:0.0,sparkle:true,blushIntensity:0.05,bgColor:[40,30,80],label:'Dreaming...'},
+};
 
-    const batEl = document.getElementById('s-battery');
-    batEl.textContent = data.battery ? data.battery + '%' : '--';
-    batEl.className = 'stat-value ' + (data.battery < 20 ? 'low' : 'cool');
+// ─── Actor Face Map ──────────────────────────────────────────────────
+const ACTOR_FACES = {
+  'morgan freeman':     {skinHue:30,skinSat:62,skinLit:32,faceWidth:1.05,eyeSize:0.88,browArch:0.6,lipFullness:1.2,noseWidth:1.2},
+  'idris elba':        {skinHue:26,skinSat:58,skinLit:28,faceWidth:1.1,eyeSize:1.0,browArch:0.8,lipFullness:1.1,noseWidth:1.15},
+  'scarlett johansson':{skinHue:15,skinSat:22,skinLit:82,faceWidth:0.88,eyeSize:1.2,browArch:1.2,lipFullness:1.25,noseWidth:0.8},
+  'keanu reeves':      {skinHue:28,skinSat:20,skinLit:68,faceWidth:0.96,eyeSize:1.0,browArch:0.85,lipFullness:0.85,noseWidth:0.95},
+  'zendaya':           {skinHue:20,skinSat:45,skinLit:48,faceWidth:0.85,eyeSize:1.25,browArch:1.1,lipFullness:1.15,noseWidth:0.88},
+  'denzel washington': {skinHue:25,skinSat:60,skinLit:30,faceWidth:1.08,eyeSize:0.92,browArch:1.0,lipFullness:1.12,noseWidth:1.15},
+  "lupita nyong'o":    {skinHue:18,skinSat:70,skinLit:18,faceWidth:0.9,eyeSize:1.25,browArch:1.15,lipFullness:1.2,noseWidth:1.0},
+  'ryan reynolds':     {skinHue:12,skinSat:22,skinLit:85,faceWidth:1.05,eyeSize:0.95,browArch:0.8,lipFullness:0.82,noseWidth:0.95},
+  'viola davis':       {skinHue:22,skinSat:65,skinLit:24,faceWidth:0.98,eyeSize:1.1,browArch:1.05,lipFullness:1.18,noseWidth:1.08},
+  'priyanka chopra':   {skinHue:25,skinSat:42,skinLit:52,faceWidth:0.9,eyeSize:1.18,browArch:1.15,lipFullness:1.12,noseWidth:0.9},
+  'anthony hopkins':   {skinHue:15,skinSat:18,skinLit:75,faceWidth:1.08,eyeSize:0.85,browArch:0.7,lipFullness:0.9,noseWidth:1.05},
+  'chadwick boseman':  {skinHue:24,skinSat:58,skinLit:30,faceWidth:0.95,eyeSize:1.05,browArch:0.95,lipFullness:1.1,noseWidth:1.05},
+  'default':           {skinHue:25,skinSat:35,skinLit:55,faceWidth:1.0,eyeSize:1.0,browArch:1.0,lipFullness:1.0,noseWidth:1.0},
+};
+// Actor lerp target (smooth transitions between identities)
+let actorLerp = {...ACTOR_FACES['default']};
 
-    document.getElementById('s-ram').textContent = data.ramFree ? data.ramFree + 'MB' : '--';
-    document.getElementById('s-cycles').textContent = data.cycleCount || '--';
-    document.getElementById('s-thermal').textContent = data.thermalTier || '--';
+function getActorParams() {
+  const id = state.faceIdentity;
+  if (!id || !id.actor) return ACTOR_FACES['default'];
+  const actor = id.actor.toLowerCase();
+  if (ACTOR_FACES[actor]) return ACTOR_FACES[actor];
+  for (const [key,params] of Object.entries(ACTOR_FACES)) {
+    if (key !== 'default' && (actor.includes(key) || key.includes(actor.split(' ')[0]))) return params;
+  }
+  return ACTOR_FACES['default'];
+}
 
-    if (data.uptime) {
-      const h = Math.floor(data.uptime / 3600);
-      const m = Math.floor((data.uptime % 3600) / 60);
-      document.getElementById('s-uptime').textContent = h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+// Growth stage → face shape modifiers
+const STAGE_FACE = {
+  INFANT:  {roundness:1.4, eyeScale:1.15, browOffset:0.85, featureScale:0.85},
+  CHILD:   {roundness:1.2, eyeScale:1.1,  browOffset:0.9,  featureScale:0.92},
+  TEEN:    {roundness:1.0, eyeScale:1.0,  browOffset:1.0,  featureScale:1.0},
+  ADULT:   {roundness:0.9, eyeScale:1.0,  browOffset:1.0,  featureScale:1.0},
+  SAGE:    {roundness:0.88,eyeScale:0.97, browOffset:1.02, featureScale:1.0},
+};
+function getStageFace() {
+  const level = (state.growth && state.growth.level) ? state.growth.level.toUpperCase() : 'ADULT';
+  return STAGE_FACE[level] || STAGE_FACE.ADULT;
+}
+
+// ─── Animation State ─────────────────────────────────────────────────
+const anim = {
+  eyeOpen:0.5, eyeNarrow:0.0, pupilSize:0.75, mouthCurve:0.1,
+  eyebrowAngle:0.0, sparkle:false, sparkleOpacity:0, blushIntensity:0,
+  bgR:140, bgG:80, bgB:120,
+  edgeR:100, edgeG:100, edgeB:255, edgePulseSpeed:1.0, edgePulsePhase:0,
+  blinkTimer:0, blinkDuration:150, nextBlink:3000+Math.random()*4000, isBlinking:false,
+  lookX:0, lookY:0, targetLookX:0, targetLookY:0, nextLookChange:2000+Math.random()*5000,
+  breathPhase:0, talkPhase:0, jitterX:0, jitterY:0, sparklePhase:0,
+  mouthAsymmetry:0, surpriseMouth:0, label:'Waking up...',
+  lastTime:performance.now(),
+  headBobY:0, headBobPhase:0,  // music reaction
+  beatFlash:0,                  // eye sparkle on beat
+};
+
+// Micro-expressions
+const MICRO_EXPRS = [
+  {eyeNarrow:0.5,mouthCurve:0.35,duration:420},
+  {eyeOpen:0.08,mouthCurve:0.05,duration:280},
+  {eyebrowAngle:-0.7,eyeNarrow:0.15,duration:340},
+  {eyebrowAngle:0.9,eyeOpen:0.95,duration:260},
+  {blushIntensity:0.35,mouthCurve:0.28,duration:520},
+  {eyeNarrow:0.3,eyebrowAngle:-0.3,duration:380},
+];
+let microExprTimer=0, nextMicroExpr=5000+Math.random()*4000, activeMicroExpr=null, microExprEnd=0;
+
+// Weather particles
+const weatherParticles = [];
+function initWeatherParticles(condition) {
+  weatherParticles.length = 0;
+  const cond = (condition||'').toLowerCase();
+  if (/rain|storm|drizzle/.test(cond)) {
+    for (let i=0;i<60;i++) weatherParticles.push({x:Math.random(),y:Math.random(),vy:0.012+Math.random()*0.01,vx:-0.003,size:1.5,type:'rain'});
+  } else if (/snow|blizzard/.test(cond)) {
+    for (let i=0;i<40;i++) weatherParticles.push({x:Math.random(),y:Math.random(),vy:0.003+Math.random()*0.004,vx:(Math.random()-0.5)*0.003,size:2+Math.random()*2,type:'snow'});
+  }
+}
+let lastWeatherCond = '';
+
+// ─── Resize ─────────────────────────────────────────────────────────
+function resize() {
+  const panel = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const w = panel.clientWidth || Math.floor(window.innerWidth / 2);
+  const h = panel.clientHeight || Math.floor(window.innerHeight * 0.85);
+  canvas.width   = w * dpr; canvas.height   = h * dpr;
+  wxCanvas.width = w * dpr; wxCanvas.height = h * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  wxCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize);
+setTimeout(resize, 100);
+
+// ─── Lerp / Clamp ───────────────────────────────────────────────────
+function lerp(a,b,t){ return a+(b-a)*Math.min(1,t); }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+
+// ─── HSL to RGB utility ─────────────────────────────────────────────
+function hsl2rgb(h,s,l){s/=100;l/=100;const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));};return[Math.round(f(0)*255),Math.round(f(8)*255),Math.round(f(4)*255)];}
+
+// ─── Draw Face Shape (human, not monkey) ────────────────────────────
+function drawFaceShape(cx,cy,unit) {
+  const ap = actorLerp;
+  const sf = getStageFace();
+  const fw = unit*2.6*ap.faceWidth;
+  const fh = unit*3.4*sf.roundness;
+  const [sr,sg,sb]=hsl2rgb(ap.skinHue,ap.skinSat,ap.skinLit);
+  const br=Math.round(sr+anim.bgR*0.04),bg=Math.round(sg+anim.bgG*0.03),bb=Math.round(sb+anim.bgB*0.03);
+  const skinCol=`rgb(${br},${bg},${bb})`;
+  const skinColDark=`rgb(${Math.max(0,br-30)},${Math.max(0,bg-35)},${Math.max(0,bb-25)})`;
+  const skinColLight=`rgb(${Math.min(255,br+25)},${Math.min(255,bg+20)},${Math.min(255,bb+15)})`;
+
+  ctx.save();
+
+  // ── Human head shape: forehead wider, jawline tapers, chin defined ──
+  const foreheadW=fw*0.52, cheekW=fw*0.50, jawW=fw*0.38, chinW=fw*0.18;
+  const foreheadY=cy-fh*0.42, cheekY=cy+fh*0.05, jawY=cy+fh*0.30, chinY=cy+fh*0.46;
+  ctx.beginPath();
+  // Start at left temple, go across forehead
+  ctx.moveTo(cx-foreheadW, foreheadY);
+  // Forehead curve (slightly rounded top)
+  ctx.quadraticCurveTo(cx-foreheadW*0.5, cy-fh*0.52, cx, cy-fh*0.50);
+  ctx.quadraticCurveTo(cx+foreheadW*0.5, cy-fh*0.52, cx+foreheadW, foreheadY);
+  // Right temple down to cheek
+  ctx.quadraticCurveTo(cx+cheekW*1.05, cy-fh*0.15, cx+cheekW, cheekY);
+  // Cheek to jaw (tapers in)
+  ctx.quadraticCurveTo(cx+jawW*1.15, cy+fh*0.18, cx+jawW, jawY);
+  // Jaw to chin
+  ctx.quadraticCurveTo(cx+chinW*1.2, cy+fh*0.40, cx, chinY);
+  // Chin to left jaw
+  ctx.quadraticCurveTo(cx-chinW*1.2, cy+fh*0.40, cx-jawW, jawY);
+  // Left jaw to cheek
+  ctx.quadraticCurveTo(cx-jawW*1.15, cy+fh*0.18, cx-cheekW, cheekY);
+  // Left cheek to temple
+  ctx.quadraticCurveTo(cx-cheekW*1.05, cy-fh*0.15, cx-foreheadW, foreheadY);
+  ctx.closePath();
+
+  // Solid skin fill
+  const skinGrad=ctx.createLinearGradient(cx,cy-fh*0.5,cx,chinY);
+  skinGrad.addColorStop(0,skinColLight);
+  skinGrad.addColorStop(0.4,skinCol);
+  skinGrad.addColorStop(1,skinColDark);
+  ctx.fillStyle=skinGrad;
+  ctx.fill();
+
+  // Subtle edge shadow for depth
+  ctx.strokeStyle=`rgba(${Math.max(0,br-50)},${Math.max(0,bg-55)},${Math.max(0,bb-40)},0.35)`;
+  ctx.lineWidth=unit*0.04;
+  ctx.stroke();
+
+  // Forehead highlight
+  ctx.beginPath();
+  ctx.ellipse(cx,cy-fh*0.32,fw*0.28,fh*0.12,0,0,Math.PI*2);
+  ctx.fillStyle=`rgba(${Math.min(255,br+40)},${Math.min(255,bg+35)},${Math.min(255,bb+25)},0.18)`;
+  ctx.fill();
+
+  // Cheek blush zones
+  for(const side of[-1,1]){
+    const chx=cx+side*fw*0.32,chy=cy+unit*0.35;
+    ctx.beginPath();ctx.ellipse(chx,chy,unit*0.35,unit*0.25,0,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${Math.min(255,br+20)},${Math.max(0,bg-15)},${Math.max(0,bb-20)},0.15)`;
+    ctx.fill();
+  }
+
+  // Jaw shadow
+  ctx.beginPath();
+  ctx.ellipse(cx,jawY+unit*0.1,jawW*0.9,unit*0.2,0,0,Math.PI*2);
+  ctx.fillStyle=`rgba(${Math.max(0,br-40)},${Math.max(0,bg-45)},${Math.max(0,bb-35)},0.25)`;
+  ctx.fill();
+
+  // ── Ears ──
+  for(const side of[-1,1]){
+    const earX=cx+side*cheekW*0.98, earY=cy-unit*0.05;
+    ctx.beginPath();
+    ctx.ellipse(earX+side*unit*0.18,earY,unit*0.18,unit*0.32,side*0.15,0,Math.PI*2);
+    ctx.fillStyle=skinCol;ctx.fill();
+    ctx.strokeStyle=skinColDark;ctx.lineWidth=unit*0.03;ctx.stroke();
+    // Inner ear
+    ctx.beginPath();
+    ctx.ellipse(earX+side*unit*0.2,earY,unit*0.1,unit*0.2,side*0.15,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${Math.max(0,br-25)},${Math.max(0,bg-30)},${Math.max(0,bb-20)},0.5)`;ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// ─── Draw Hair ──────────────────────────────────────────────────────
+function drawHair(cx,cy,unit) {
+  const ap = actorLerp;
+  const sf = getStageFace();
+  const fw = unit*2.6*ap.faceWidth;
+  const fh = unit*3.4*sf.roundness;
+  // Hair color based on skin — darker skin gets darker hair, lighter gets brown/blonde
+  const hairDark = ap.skinLit < 40;
+  const hairR = hairDark ? 15+ap.skinLit*0.3 : 60+ap.skinLit*0.6;
+  const hairG = hairDark ? 10+ap.skinLit*0.2 : 40+ap.skinLit*0.4;
+  const hairB = hairDark ? 8+ap.skinLit*0.15 : 25+ap.skinLit*0.3;
+  const hairCol = `rgb(${Math.round(hairR)},${Math.round(hairG)},${Math.round(hairB)})`;
+  const hairColDark = `rgb(${Math.round(hairR*0.5)},${Math.round(hairG*0.5)},${Math.round(hairB*0.5)})`;
+
+  ctx.save();
+  // Hair volume on top of head
+  const hairTop = cy-fh*0.55;
+  const foreheadW = fw*0.52;
+  ctx.beginPath();
+  ctx.moveTo(cx-foreheadW*1.05, cy-fh*0.35);
+  ctx.quadraticCurveTo(cx-foreheadW*0.8, hairTop-unit*0.25, cx, hairTop-unit*0.2);
+  ctx.quadraticCurveTo(cx+foreheadW*0.8, hairTop-unit*0.25, cx+foreheadW*1.05, cy-fh*0.35);
+  // Hairline follows forehead
+  ctx.quadraticCurveTo(cx+foreheadW*0.5, cy-fh*0.40, cx, cy-fh*0.38);
+  ctx.quadraticCurveTo(cx-foreheadW*0.5, cy-fh*0.40, cx-foreheadW*1.05, cy-fh*0.35);
+  ctx.closePath();
+  const hairGrad=ctx.createLinearGradient(cx,hairTop-unit*0.3,cx,cy-fh*0.35);
+  hairGrad.addColorStop(0,hairCol);
+  hairGrad.addColorStop(1,hairColDark);
+  ctx.fillStyle=hairGrad;
+  ctx.fill();
+
+  // Hair strands for texture
+  ctx.strokeStyle=`rgba(${Math.round(hairR*1.3)},${Math.round(hairG*1.3)},${Math.round(hairB*1.3)},0.2)`;
+  ctx.lineWidth=unit*0.02;
+  for(let i=0;i<8;i++){
+    const sx=cx-foreheadW*0.8+i*foreheadW*0.2;
+    ctx.beginPath();
+    ctx.moveTo(sx,cy-fh*0.38);
+    ctx.quadraticCurveTo(sx+unit*0.05,hairTop-unit*0.1,sx-unit*0.05,hairTop-unit*0.15);
+    ctx.stroke();
+  }
+
+  // Side hair (temples)
+  for(const side of[-1,1]){
+    ctx.beginPath();
+    ctx.ellipse(cx+side*foreheadW*0.95,cy-fh*0.22,unit*0.15,unit*0.4,side*0.3,0,Math.PI*2);
+    ctx.fillStyle=hairColDark;ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawNose(cx,cy,unit){
+  const ap=actorLerp;
+  const nw=unit*0.22*ap.noseWidth;
+  const [sr,sg,sb]=hsl2rgb(ap.skinHue,ap.skinSat,ap.skinLit);
+  const skinDark=`rgba(${Math.max(0,sr-35)},${Math.max(0,sg-40)},${Math.max(0,sb-30)},0.45)`;
+  const skinLight=`rgba(${Math.min(255,sr+30)},${Math.min(255,sg+25)},${Math.min(255,sb+20)},0.25)`;
+
+  // Nose bridge (subtle highlight line)
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx,cy-unit*0.7);
+  ctx.quadraticCurveTo(cx+unit*0.06,cy-unit*0.3,cx,cy);
+  ctx.strokeStyle=skinLight;ctx.lineWidth=unit*0.06;ctx.stroke();
+
+  // Nose tip (rounded)
+  ctx.beginPath();
+  ctx.ellipse(cx,cy+unit*0.02,nw*0.6,unit*0.12,0,0,Math.PI*2);
+  ctx.fillStyle=skinLight;ctx.fill();
+
+  // Nostrils
+  for(const side of[-1,1]){
+    ctx.beginPath();
+    ctx.ellipse(cx+side*nw*0.7,cy+unit*0.08,unit*0.08,unit*0.06,side*0.3,0,Math.PI*2);
+    ctx.fillStyle=skinDark;ctx.fill();
+  }
+
+  // Nose shadow underneath
+  ctx.beginPath();
+  ctx.ellipse(cx,cy+unit*0.15,nw*0.8,unit*0.05,0,0,Math.PI);
+  ctx.fillStyle=`rgba(0,0,0,0.12)`;ctx.fill();
+  ctx.restore();
+}
+
+function drawEyebrow(cx,cy,eyeRadius,angle,isLeft){
+  const ap=actorLerp;
+  const browWidth=eyeRadius*1.3*ap.browArch,browThick=eyeRadius*0.12,yOffset=-eyeRadius*1.35;
+  const innerX=isLeft?cx+browWidth*0.5:cx-browWidth*0.5,outerX=isLeft?cx-browWidth*0.5:cx+browWidth*0.5;
+  const baseY=cy+yOffset,innerY=baseY-angle*browThick*8,outerY=baseY+angle*browThick*2;
+  const cpX=(innerX+outerX)/2,cpY=Math.min(innerY,outerY)-browThick*3;
+  // Thick visible eyebrow — hair-colored
+  const hairDark2 = actorLerp.skinLit < 40;
+  const browR = hairDark2 ? 25 : 70, browG = hairDark2 ? 18 : 50, browB = hairDark2 ? 12 : 35;
+  ctx.beginPath();ctx.moveTo(outerX,outerY);ctx.quadraticCurveTo(cpX,cpY,innerX,innerY);
+  ctx.strokeStyle=`rgba(${browR},${browG},${browB},0.85)`;ctx.lineWidth=eyeRadius*0.16;ctx.lineCap='round';ctx.stroke();
+  // Eyebrow highlight edge
+  ctx.beginPath();ctx.moveTo(outerX,outerY-browThick*0.5);ctx.quadraticCurveTo(cpX,cpY-browThick*0.5,innerX,innerY-browThick*0.5);
+  ctx.strokeStyle=`rgba(${browR+30},${browG+25},${browB+20},0.3)`;ctx.lineWidth=eyeRadius*0.04;ctx.stroke();
+}
+
+function drawEye(cx,cy,radius,openness,narrowness,pupilScale,lookX,lookY,jitterX,jitterY,showSparkle,sparkleOpacity,beatFlash){
+  const open=Math.max(0.02,openness),eyeH=radius*open,eyeW=radius*(1-narrowness*0.3);
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,eyeW,eyeH,0,0,Math.PI*2);
+  const scleraGrad=ctx.createRadialGradient(cx,cy-eyeH*0.2,eyeH*0.05,cx,cy,eyeW);
+  scleraGrad.addColorStop(0,'rgba(246,248,252,1)');scleraGrad.addColorStop(0.6,'rgba(228,234,245,1)');scleraGrad.addColorStop(1,'rgba(195,208,228,0.92)');
+  ctx.fillStyle=scleraGrad;ctx.fill();ctx.clip();
+  const maxOffset=radius*0.25,px=cx+(lookX+jitterX)*maxOffset,py=cy+(lookY+jitterY)*maxOffset;
+  const pupilR=radius*0.45*pupilScale,irisR=pupilR*1.72;
+  const irisGrad=ctx.createRadialGradient(px,py-irisR*0.15,pupilR*0.18,px,py,irisR);
+  irisGrad.addColorStop(0,'#3d82c0');irisGrad.addColorStop(0.35,'#1e5080');irisGrad.addColorStop(0.72,'#112d52');irisGrad.addColorStop(1,'#081520');
+  ctx.beginPath();ctx.arc(px,py,irisR,0,Math.PI*2);ctx.fillStyle=irisGrad;ctx.fill();
+  // iris stria
+  for(let i=0;i<20;i++){const angle=(i/20)*Math.PI*2,wobble=Math.sin(angle*4.1+i*1.3)*0.15+0.06,len=irisR*(0.42+wobble*0.38);ctx.save();ctx.globalAlpha=0.11+wobble*0.14;ctx.strokeStyle='#8ac4f0';ctx.lineWidth=0.75;ctx.beginPath();ctx.moveTo(px+Math.cos(angle)*pupilR*1.08,py+Math.sin(angle)*pupilR*1.08);ctx.lineTo(px+Math.cos(angle)*len,py+Math.sin(angle)*len);ctx.stroke();ctx.restore();}
+  const limbalGrad=ctx.createRadialGradient(px,py,irisR*0.7,px,py,irisR);limbalGrad.addColorStop(0,'rgba(0,0,0,0)');limbalGrad.addColorStop(0.65,'rgba(0,0,0,0.28)');limbalGrad.addColorStop(1,'rgba(0,0,0,0.82)');ctx.beginPath();ctx.arc(px,py,irisR,0,Math.PI*2);ctx.fillStyle=limbalGrad;ctx.fill();
+  const pupilGrad=ctx.createRadialGradient(px,py-pupilR*0.2,0,px,py,pupilR);pupilGrad.addColorStop(0,'#18102a');pupilGrad.addColorStop(0.7,'#05050f');pupilGrad.addColorStop(1,'#020208');ctx.beginPath();ctx.arc(px,py,pupilR,0,Math.PI*2);ctx.fillStyle=pupilGrad;ctx.fill();
+  const catchX=px-pupilR*0.28,catchY=py-pupilR*0.40;
+  const catchGrad=ctx.createRadialGradient(catchX,catchY,0,catchX,catchY,pupilR*0.34);catchGrad.addColorStop(0,'rgba(255,255,255,0.94)');catchGrad.addColorStop(0.45,'rgba(220,236,255,0.52)');catchGrad.addColorStop(1,'rgba(255,255,255,0)');ctx.beginPath();ctx.arc(catchX,catchY,pupilR*0.34,0,Math.PI*2);ctx.fillStyle=catchGrad;ctx.fill();
+  ctx.beginPath();ctx.arc(px+pupilR*0.44,py+pupilR*0.30,pupilR*0.10,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.26)';ctx.fill();
+  // Beat flash sparkle
+  if (beatFlash > 0.05) {
+    ctx.beginPath();ctx.arc(px,py,irisR*0.9,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${beatFlash*0.18})`;ctx.fill();
+  }
+  if(showSparkle&&sparkleOpacity>0.01){
+    [{angle:-0.8,dist:0.55,size:0.12},{angle:1.8,dist:0.7,size:0.09},{angle:2.8,dist:0.45,size:0.10}].forEach(sp=>{const sx=px+Math.cos(sp.angle)*irisR*sp.dist,sy=py+Math.sin(sp.angle)*irisR*sp.dist;ctx.beginPath();ctx.arc(sx,sy,pupilR*sp.size,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${sparkleOpacity*0.85})`;ctx.fill();});
+  }
+  const lidShadow=ctx.createLinearGradient(cx,cy-eyeH,cx,cy-eyeH*0.15);lidShadow.addColorStop(0,'rgba(12,8,28,0.58)');lidShadow.addColorStop(1,'rgba(12,8,28,0)');ctx.beginPath();ctx.ellipse(cx,cy,eyeW,eyeH,0,0,Math.PI*2);ctx.fillStyle=lidShadow;ctx.fill();
+  ctx.restore();
+  ctx.save();ctx.globalAlpha=0.16*open;ctx.strokeStyle='rgba(230,165,165,0.65)';ctx.lineWidth=1.1;ctx.beginPath();ctx.ellipse(cx,cy+eyeH*0.65,eyeW*0.80,eyeH*0.17,0,Math.PI,Math.PI*2);ctx.stroke();ctx.restore();
+  ctx.save();ctx.globalAlpha=0.72*open;const lashGrad=ctx.createLinearGradient(cx-eyeW,cy-eyeH*0.8,cx+eyeW,cy-eyeH*0.8);lashGrad.addColorStop(0,'rgba(28,18,48,0)');lashGrad.addColorStop(0.12,'rgba(28,18,48,0.82)');lashGrad.addColorStop(0.88,'rgba(28,18,48,0.82)');lashGrad.addColorStop(1,'rgba(28,18,48,0)');ctx.strokeStyle=lashGrad;ctx.lineWidth=2.8;ctx.beginPath();ctx.ellipse(cx,cy-eyeH*0.08,eyeW*1.01,eyeH*1.01,0,Math.PI,0);ctx.stroke();ctx.restore();
+  ctx.save();ctx.globalAlpha=0.32;ctx.strokeStyle='rgba(70,60,110,0.75)';ctx.lineWidth=1.4;ctx.beginPath();ctx.ellipse(cx,cy,eyeW,eyeH,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+}
+
+function drawBlush(cx,cy,radius,intensity){
+  if(intensity<0.005)return;const opacity=clamp(intensity,0,0.3);const blushR=radius*0.55;const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,blushR);grad.addColorStop(0,`rgba(255,80,100,${opacity})`);grad.addColorStop(0.5,`rgba(255,60,90,${opacity*0.5})`);grad.addColorStop(1,'rgba(255,60,90,0)');ctx.beginPath();ctx.arc(cx,cy,blushR,0,Math.PI*2);ctx.fillStyle=grad;ctx.fill();
+}
+
+function drawMouth(cx,cy,width,curve,talkOpenness,asymmetry,surpriseAmount){
+  const ap=actorLerp;
+  const halfW=width/2*ap.lipFullness;
+  const [sr,sg,sb]=hsl2rgb(ap.skinHue,ap.skinSat,ap.skinLit);
+  // Lip color — pinkish-brown, darker for darker skin
+  const lipR=Math.min(255,sr*0.7+80),lipG=Math.max(0,sg*0.4+30),lipB=Math.max(0,sb*0.4+40);
+  const lipCol=`rgba(${Math.round(lipR)},${Math.round(lipG)},${Math.round(lipB)},0.85)`;
+  const lipDark=`rgba(${Math.round(lipR*0.7)},${Math.round(lipG*0.6)},${Math.round(lipB*0.6)},0.9)`;
+
+  if(surpriseAmount>0.1){const ovalW=width*0.22*surpriseAmount,ovalH=width*0.3*surpriseAmount;ctx.save();ctx.globalAlpha=clamp(surpriseAmount,0,1);ctx.beginPath();ctx.ellipse(cx,cy,ovalW,ovalH,0,0,Math.PI*2);ctx.fillStyle='rgba(25,15,35,0.85)';ctx.fill();ctx.strokeStyle=lipCol;ctx.lineWidth=3;ctx.stroke();ctx.restore();if(surpriseAmount>0.8)return;}
+  const leftCurve=curve-asymmetry*0.15,rightCurve=curve+asymmetry*0.15;
+  const normalAlpha=surpriseAmount>0.1?clamp(1-surpriseAmount,0,1):1;
+  ctx.save();ctx.globalAlpha=normalAlpha;
+  if(talkOpenness>0.05){
+    const openH=talkOpenness*width*0.25,cp1yL=cy+leftCurve*width*0.4,cp1yR=cy+rightCurve*width*0.4,cpAvg=(cp1yL+cp1yR)/2;
+    // Upper lip
+    ctx.beginPath();ctx.moveTo(cx-halfW,cy);ctx.quadraticCurveTo(cx-halfW*0.3,cp1yL-openH,cx,cpAvg-openH);ctx.quadraticCurveTo(cx+halfW*0.3,cp1yR-openH,cx+halfW,cy);ctx.lineTo(cx+halfW,cy);ctx.quadraticCurveTo(cx,cy+openH*0.3,cx-halfW,cy);
+    ctx.fillStyle=lipCol;ctx.fill();
+    // Lower lip (fuller)
+    ctx.beginPath();ctx.moveTo(cx-halfW,cy);ctx.quadraticCurveTo(cx,cy+openH*0.3,cx+halfW,cy);ctx.quadraticCurveTo(cx+halfW*0.3,cp1yR+openH,cx,cpAvg+openH);ctx.quadraticCurveTo(cx-halfW*0.3,cp1yL+openH,cx-halfW,cy);
+    ctx.fillStyle=lipDark;ctx.fill();
+    // Mouth interior
+    ctx.beginPath();ctx.ellipse(cx,cy+openH*0.2,halfW*0.7,openH*0.6,0,0,Math.PI*2);ctx.fillStyle='rgba(25,10,20,0.85)';ctx.fill();
+  } else {
+    const cp1yL=cy+leftCurve*width*0.4,cp1yR=cy+rightCurve*width*0.4,cpAvg=(cp1yL+cp1yR)/2;
+    // Upper lip shape
+    const lipH=width*0.06*ap.lipFullness;
+    ctx.beginPath();ctx.moveTo(cx-halfW,cy);ctx.quadraticCurveTo(cx-halfW*0.3,cpAvg-lipH,cx,cpAvg-lipH);ctx.quadraticCurveTo(cx+halfW*0.3,cpAvg-lipH,cx+halfW,cy);ctx.quadraticCurveTo(cx+halfW*0.3,cy+lipH*0.3,cx,cy);ctx.quadraticCurveTo(cx-halfW*0.3,cy+lipH*0.3,cx-halfW,cy);
+    ctx.fillStyle=lipCol;ctx.fill();
+    // Lower lip
+    ctx.beginPath();ctx.moveTo(cx-halfW*0.9,cy);ctx.quadraticCurveTo(cx,cpAvg+lipH*2.5,cx+halfW*0.9,cy);ctx.quadraticCurveTo(cx,cy+lipH*0.5,cx-halfW*0.9,cy);
+    ctx.fillStyle=lipDark;ctx.fill();
+    // Lip line
+    ctx.beginPath();ctx.moveTo(cx-halfW,cy);ctx.quadraticCurveTo(cx,cpAvg,cx+halfW,cy);
+    ctx.strokeStyle=`rgba(${Math.round(lipR*0.5)},${Math.round(lipG*0.4)},${Math.round(lipB*0.4)},0.6)`;ctx.lineWidth=1.5;ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBreathGlow(cx,cy,radius,phase){
+  const intensity=0.05+Math.sin(phase)*0.03,glowR=radius*(1.8+Math.sin(phase)*0.15);
+  const grad=ctx.createRadialGradient(cx,cy,radius*0.5,cx,cy,glowR);
+  grad.addColorStop(0,`rgba(${Math.round(anim.bgR)},${Math.round(anim.bgG)},${Math.round(anim.bgB)},${intensity})`);
+  grad.addColorStop(1,'rgba(10,10,26,0)');
+  ctx.beginPath();ctx.arc(cx,cy,glowR,0,Math.PI*2);ctx.fillStyle=grad;ctx.fill();
+}
+
+function updateEdgeGlow(dt){
+  anim.edgePulsePhase+=dt/1000*anim.edgePulseSpeed*Math.PI*2;
+  const pulseOp=0.1+(0.5-0.1)*(0.5+0.5*Math.sin(anim.edgePulsePhase));
+  edgeGlowEl.style.boxShadow=`inset 0 0 25px 15px rgba(${Math.round(anim.edgeR)},${Math.round(anim.edgeG)},${Math.round(anim.edgeB)},${pulseOp.toFixed(3)})`;
+}
+
+// Draw sunny radial glow behind face
+function drawSunGlow(cx,cy,unit){
+  const glow=ctx.createRadialGradient(cx,cy,unit,cx,cy,unit*4);
+  glow.addColorStop(0,'rgba(255,220,80,0.12)');glow.addColorStop(1,'rgba(255,200,0,0)');
+  ctx.beginPath();ctx.arc(cx,cy,unit*4,0,Math.PI*2);ctx.fillStyle=glow;ctx.fill();
+}
+
+// Weather canvas particles
+function drawWeatherParticles(w,h){
+  wxCtx.clearRect(0,0,w,h);
+  const cond=(state.weather&&state.weather.condition)||'';
+  if(cond !== lastWeatherCond){ initWeatherParticles(cond); lastWeatherCond=cond; }
+  for(const p of weatherParticles){
+    p.x=(p.x+p.vx+1)%1; p.y=(p.y+p.vy)%1;
+    if(p.type==='rain'){
+      wxCtx.save();wxCtx.globalAlpha=0.35;wxCtx.strokeStyle='rgba(140,180,255,0.7)';wxCtx.lineWidth=1;
+      wxCtx.beginPath();wxCtx.moveTo(p.x*w,p.y*h);wxCtx.lineTo(p.x*w+p.vx*w*8,(p.y+p.vy*2.5)*h);wxCtx.stroke();wxCtx.restore();
+    } else {
+      wxCtx.save();wxCtx.globalAlpha=0.5;wxCtx.fillStyle='rgba(220,235,255,0.85)';
+      wxCtx.beginPath();wxCtx.arc(p.x*w,p.y*h,p.size,0,Math.PI*2);wxCtx.fill();wxCtx.restore();
     }
-
-    // Update eye
-    eye.className = 'eye' + (data.paused ? ' paused' : '');
-    statusEl.textContent = data.paused ? 'Cooling down...' :
-      data.category ? data.category.replace(/_/g, ' ').toLowerCase() : 'Online';
-
-    // Update thoughts
-    if (data.thoughts && data.thoughts.length > 0 && data.thoughts.length !== lastThoughtCount) {
-      lastThoughtCount = data.thoughts.length;
-      renderThoughts(data.thoughts);
-    }
-  } catch {
-    eye.className = 'eye offline';
-    statusEl.textContent = 'Disconnected';
   }
 }
 
-function renderThoughts(thoughts) {
-  const el = document.getElementById('thought-stream');
-  el.innerHTML = thoughts.map(t => {
-    const time = new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const cat = t.category || '';
-    return `<div class="thought">
-      <span class="time">${time}</span>
-      <div class="category">${cat.replace(/_/g, ' ')}</div>
-      ${escapeHtml(t.text)}
-    </div>`;
-  }).join('');
-  el.scrollTop = el.scrollHeight;
+// ─── Resolve Expression ─────────────────────────────────────────────
+function resolveExpression(){
+  let result;
+  if(state.expression){
+    const expr=state.expression;
+    result={eyeOpen:expr.eyeOpen??0.5,eyeNarrow:0,pupilSize:expr.pupilSize??0.75,mouthCurve:expr.mouthCurve??0.1,eyebrowAngle:expr.eyebrowAngle??0,sparkle:!!expr.sparkle,blushIntensity:expr.blushIntensity??0,edgeColor:expr.edgeColor||null,edgePulseSpeed:expr.edgePulseSpeed??1.0,bgColor:null,label:null};
+  } else {
+    let cat=state.category;
+    if(state.talking)cat='TALKING';
+    if(state.temp>55)cat='ALERT';
+    const base=EXPRESSIONS[cat]||EXPRESSIONS.IDLE_MUSING;
+    result={eyeOpen:base.eyeOpen,eyeNarrow:base.eyeNarrow,pupilSize:base.pupilSize,mouthCurve:base.mouthCurve,eyebrowAngle:base.eyebrowAngle,sparkle:base.sparkle,blushIntensity:base.blushIntensity,edgeColor:null,edgePulseSpeed:1.0,bgColor:base.bgColor?base.bgColor.slice():null,label:base.label};
+    if(state.sensorLux!=null){const logLux=Math.log10(Math.max(1,state.sensorLux));result.pupilSize=clamp(1.3-(logLux/4)*0.75,0.55,1.3);}
+    if(state.temp>65){const t=clamp((state.temp-65)/15,0,1);const bg=result.bgColor||[140,80,120];result.bgColor=[Math.round(lerp(bg[0],220,t)),Math.round(lerp(bg[1],45,t)),Math.round(lerp(bg[2],20,t))];}
+    if(state.battery>0&&state.battery<20){const droop=clamp((20-state.battery)/20,0,0.45);result.eyeOpen=Math.max(0.08,result.eyeOpen-droop);}
+    if(state.weather){
+      const cond=(state.weather.condition||'').toLowerCase(),tempC=state.weather.tempC||0;
+      if(/rain|storm|thunder|drizzle/.test(cond)){result.eyeNarrow=(result.eyeNarrow||0)+0.12;result.mouthCurve=Math.max(-0.15,result.mouthCurve-0.1);const bg=result.bgColor||[140,80,120];result.bgColor=[Math.round(lerp(bg[0],80,0.25)),Math.round(lerp(bg[1],100,0.25)),Math.round(lerp(bg[2],160,0.25))];}
+      else if(/clear|sunny|sun/.test(cond)){result.mouthCurve=Math.min(1,result.mouthCurve+0.12);result.sparkle=true;const bg=result.bgColor||[140,80,120];result.bgColor=[Math.round(lerp(bg[0],180,0.2)),Math.round(lerp(bg[1],120,0.2)),Math.round(lerp(bg[2],60,0.2))];}
+      else if(/snow|blizzard|sleet/.test(cond)){result.eyeOpen=Math.min(1,result.eyeOpen+0.12);result.sparkle=true;}
+      if(tempC>35){const bg=result.bgColor||[140,80,120];result.bgColor=[Math.round(lerp(bg[0],210,0.15)),Math.round(lerp(bg[1],80,0.15)),Math.round(lerp(bg[2],60,0.15))];}
+      if(tempC<5)result.eyeNarrow=(result.eyeNarrow||0)+0.1;
+    }
+    if(activeMicroExpr){
+      const me=activeMicroExpr;
+      if(me.eyeOpen!==undefined)result.eyeOpen=lerp(result.eyeOpen,me.eyeOpen,0.85);
+      if(me.eyeNarrow!==undefined)result.eyeNarrow=lerp(result.eyeNarrow||0,me.eyeNarrow,0.85);
+      if(me.mouthCurve!==undefined)result.mouthCurve=lerp(result.mouthCurve,me.mouthCurve,0.85);
+      if(me.eyebrowAngle!==undefined)result.eyebrowAngle=lerp(result.eyebrowAngle,me.eyebrowAngle,0.85);
+      if(me.blushIntensity!==undefined)result.blushIntensity=lerp(result.blushIntensity||0,me.blushIntensity,0.85);
+    }
+  }
+  return result;
 }
 
-// ─── Chat ────────────────────────────────────────────────────────────────────
-async function sendChat() {
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if (!text || sending) return;
+function computeAsymmetry(){if(!state.emotions)return 0;return clamp(Math.max(state.emotions.anxiety||0,state.emotions.discomfort||0)*1.5,0,1);}
+function computeSurprise(){if(!state.emotions)return 0;const c=(state.emotions.curiosity||0)+(state.emotions.excitement||0);return c>0.8?clamp((c-0.8)*5,0,1):0;}
 
-  sending = true;
-  document.getElementById('send-btn').disabled = true;
-  input.value = '';
+// ─── Main Draw Loop (requestAnimationFrame — 60fps) ──────────────────
+function draw(timestamp){
+  const dt=timestamp-anim.lastTime; anim.lastTime=timestamp;
+  const dtS=dt/1000;
+  const panel=canvas.parentElement;
+  const _dpr=window.devicePixelRatio||1;
+  let w=panel.clientWidth,h=panel.clientHeight;
+  if(Math.round(canvas.width)!==Math.round(w*_dpr)||Math.round(canvas.height)!==Math.round(h*_dpr))resize();
+  // Use canvas buffer dimensions (handles Chrome 69 clientHeight=0 fallback from resize())
+  w=canvas.width/_dpr; h=canvas.height/_dpr;
+  if(w<1||h<1)return requestAnimationFrame(draw);
 
-  addChatMsg('user', text);
-  chatHistory.push({ role: 'user', text });
+  // Lerp actor face params smoothly
+  const targetActor=getActorParams();
+  const alerp=0.25*dt/16.67; // fast morph — face changes are visible immediately
+  for(const k of Object.keys(actorLerp)){if(typeof targetActor[k]==='number')actorLerp[k]=lerp(actorLerp[k],targetActor[k],alerp);}
 
-  document.getElementById('typing-indicator').innerHTML = '<div class="typing">Wattson is thinking...</div>';
+  const expr=resolveExpression();
+  const ls=3*dtS,sls=2*dtS;
+  anim.eyeOpen=lerp(anim.eyeOpen,expr.eyeOpen,ls);
+  anim.eyeNarrow=lerp(anim.eyeNarrow,expr.eyeNarrow||0,ls);
+  anim.pupilSize=lerp(anim.pupilSize,clamp(expr.pupilSize,0.5,1.5),ls);
+  anim.mouthCurve=lerp(anim.mouthCurve,expr.mouthCurve,ls);
+  anim.eyebrowAngle=lerp(anim.eyebrowAngle,clamp(expr.eyebrowAngle,-1,1),sls);
+  anim.blushIntensity=lerp(anim.blushIntensity,clamp(expr.blushIntensity,0,1),sls);
+  anim.sparkleOpacity=lerp(anim.sparkleOpacity,expr.sparkle?1:0,sls);
+  anim.sparkle=anim.sparkleOpacity>0.05;
+  if(expr.bgColor){anim.bgR=lerp(anim.bgR,expr.bgColor[0],ls*0.5);anim.bgG=lerp(anim.bgG,expr.bgColor[1],ls*0.5);anim.bgB=lerp(anim.bgB,expr.bgColor[2],ls*0.5);}
+  if(expr.edgeColor){anim.edgeR=lerp(anim.edgeR,expr.edgeColor.r,sls);anim.edgeG=lerp(anim.edgeG,expr.edgeColor.g,sls);anim.edgeB=lerp(anim.edgeB,expr.edgeColor.b,sls);}
+  else{anim.edgeR=lerp(anim.edgeR,anim.bgR,sls*0.3);anim.edgeG=lerp(anim.edgeG,anim.bgG,sls*0.3);anim.edgeB=lerp(anim.edgeB,anim.bgB,sls*0.3);}
+  anim.edgePulseSpeed=lerp(anim.edgePulseSpeed,clamp(expr.edgePulseSpeed,0.5,3.0),sls);
+  if(expr.label)anim.label=expr.label;
+  anim.mouthAsymmetry=lerp(anim.mouthAsymmetry,computeAsymmetry(),sls);
+  anim.surpriseMouth=lerp(anim.surpriseMouth,computeSurprise(),sls);
 
+  // Micro-expression
+  microExprTimer+=dt;
+  if(!activeMicroExpr&&microExprTimer>nextMicroExpr){activeMicroExpr=MICRO_EXPRS[Math.floor(Math.random()*MICRO_EXPRS.length)];microExprEnd=timestamp+activeMicroExpr.duration;microExprTimer=0;nextMicroExpr=4000+Math.random()*5000;}
+  if(activeMicroExpr&&timestamp>microExprEnd)activeMicroExpr=null;
+
+  // Blink
+  anim.blinkTimer+=dt;
+  if(!anim.isBlinking&&anim.blinkTimer>anim.nextBlink){anim.isBlinking=true;anim.blinkTimer=0;}
+  if(anim.isBlinking&&anim.blinkTimer>anim.blinkDuration){anim.isBlinking=false;anim.blinkTimer=0;anim.nextBlink=2500+Math.random()*5000;}
+  const blinkMod=anim.isBlinking?Math.max(0,1-Math.sin(anim.blinkTimer/anim.blinkDuration*Math.PI)):1;
+
+  // Look
+  anim.nextLookChange-=dt;
+  if(anim.nextLookChange<=0){anim.targetLookX=(Math.random()-0.5)*1.5;anim.targetLookY=(Math.random()-0.5)*0.8;anim.nextLookChange=1500+Math.random()*4000;}
+  anim.lookX=lerp(anim.lookX,anim.targetLookX,2*dtS);
+  anim.lookY=lerp(anim.lookY,anim.targetLookY,2*dtS);
+
+  anim.breathPhase+=dtS*1.2; anim.talkPhase+=dtS*12;
+  const talkOpen=state.talking?0.3+Math.sin(anim.talkPhase)*0.3+Math.sin(anim.talkPhase*2.7)*0.15:0;
+  const jitterAmp=state.sensorIsMoving?0.14:0.04;
+  anim.jitterX=(Math.random()-0.5)*jitterAmp; anim.jitterY=(Math.random()-0.5)*jitterAmp;
+  anim.sparklePhase+=dtS*4;
+  const sparkleFlicker=0.5+0.5*Math.sin(anim.sparklePhase*2.3)*Math.cos(anim.sparklePhase*1.7);
+
+  // Music head-bob
+  const hasMusic=state.ambientMusic||state.currentComposition;
+  if(hasMusic){
+    anim.headBobPhase+=dtS*(state.currentBPM>0?(state.currentBPM/60)*Math.PI*2:4);
+    anim.headBobY=lerp(anim.headBobY,Math.sin(anim.headBobPhase)*2,0.1);
+    anim.beatFlash=lerp(anim.beatFlash,Math.max(0,Math.sin(anim.headBobPhase)*0.5),0.15);
+  } else {
+    anim.headBobY=lerp(anim.headBobY,0,0.05);
+    anim.beatFlash=lerp(anim.beatFlash,0,0.1);
+  }
+
+  // Clear
+  const bgDim=0.45;
+  ctx.fillStyle=`rgb(${Math.round(anim.bgR*bgDim)},${Math.round(anim.bgG*bgDim)},${Math.round(anim.bgB*bgDim)})`;
+  ctx.fillRect(0,0,w,h);
+
+  // Sunny glow behind face
+  if(state.weather&&/clear|sunny|sun/.test((state.weather.condition||'').toLowerCase())){
+    const unit0=Math.min(w,h)*0.14;
+    drawSunGlow(w/2,h*0.42,unit0);
+  }
+
+  const unit=Math.min(w,h)*0.14;
+  const faceCX=w/2, faceCY=h*0.42+anim.headBobY;
+  const sf=getStageFace();
+  const eyeSpacing=unit*1.6;
+  const eyeRadius=unit*0.75*actorLerp.eyeSize*sf.eyeScale;
+  const breathScale=1+Math.sin(anim.breathPhase)*0.008;
+
+  ctx.save();
+  ctx.translate(faceCX,faceCY); ctx.scale(breathScale,breathScale); ctx.translate(-faceCX,-faceCY);
+  drawBreathGlow(faceCX,faceCY,unit*3,anim.breathPhase);
+  drawFaceShape(faceCX,faceCY,unit);
+  drawHair(faceCX,faceCY,unit);
+  const leftEyeX=faceCX-eyeSpacing/2, rightEyeX=faceCX+eyeSpacing/2;
+  drawEyebrow(leftEyeX,faceCY,eyeRadius,anim.eyebrowAngle,true);
+  drawEyebrow(rightEyeX,faceCY,eyeRadius,anim.eyebrowAngle,false);
+  const effectiveOpen=anim.eyeOpen*blinkMod;
+  const effSparkle=anim.sparkleOpacity*sparkleFlicker;
+  drawEye(leftEyeX,faceCY,eyeRadius,effectiveOpen,anim.eyeNarrow,anim.pupilSize,anim.lookX,anim.lookY,anim.jitterX,anim.jitterY,anim.sparkle,effSparkle,anim.beatFlash);
+  drawEye(rightEyeX,faceCY,eyeRadius,effectiveOpen,anim.eyeNarrow,anim.pupilSize,anim.lookX,anim.lookY,anim.jitterX,anim.jitterY,anim.sparkle,effSparkle,anim.beatFlash);
+  drawNose(faceCX,faceCY+unit*0.60*sf.featureScale,unit*actorLerp.noseWidth);
+  const blushY=faceCY+eyeRadius*0.9, blushOffX=eyeSpacing/2+eyeRadius*0.5;
+  drawBlush(faceCX-blushOffX,blushY,eyeRadius,anim.blushIntensity);
+  drawBlush(faceCX+blushOffX,blushY,eyeRadius,anim.blushIntensity);
+  drawMouth(faceCX,faceCY+unit*1.3*sf.featureScale,unit*1.4*actorLerp.lipFullness,anim.mouthCurve,talkOpen,anim.mouthAsymmetry,anim.surpriseMouth);
+  ctx.restore();
+
+  const fontSize=Math.min(12,w*0.035);
+  ctx.font=`${fontSize}px monospace`; ctx.fillStyle='rgba(200,200,220,0.4)'; ctx.textAlign='center';
+  ctx.fillText(anim.label,w/2,h-fontSize*2);
+  ctx.font=`${fontSize*0.85}px monospace`; ctx.fillStyle='rgba(150,150,170,0.35)';
+  ctx.fillText(`${Math.round(state.temp*9/5+32)}\u00B0F  ${state.battery}%  ${state.ramFree}MB`,w/2,h-fontSize*0.5);
+
+  drawWeatherParticles(w,h);
+  updateEdgeGlow(dt);
+  requestAnimationFrame(draw);
+}
+
+// ─── Init Emotion Bars ──────────────────────────────────────────────
+function initEmotionBars(){
+  const container=document.getElementById('emotion-bars');
+  for(const em of EMOTIONS){
+    const row=document.createElement('div'); row.className='emotion-row';
+    row.innerHTML=`<span class="emotion-label" style="color:${EMOTION_COLORS[em]}">${em}</span><div class="emotion-track"><div class="emotion-fill" id="em-${em}" style="background:${EMOTION_COLORS[em]}"></div></div><span class="emotion-value" id="emv-${em}" style="color:${EMOTION_COLORS[em]}">0%</span>`;
+    container.appendChild(row);
+  }
+}
+initEmotionBars();
+
+// ─── Update Emotion Bars ────────────────────────────────────────────
+function updateEmotionBars(emotions){
+  if(!emotions)return;
+  for(const em of EMOTIONS){
+    const fill=document.getElementById('em-'+em),val=document.getElementById('emv-'+em);
+    if(fill&&emotions[em]!==undefined){
+      const pct=Math.round(emotions[em]*100);
+      fill.style.width=pct+'%'; val.textContent=pct+'%';
+      if(emotions[em]>0.5){fill.classList.add('active-glow');fill.style.boxShadow=`0 0 8px ${EMOTION_COLORS[em]}`;}
+      else{fill.classList.remove('active-glow');fill.style.boxShadow='none';}
+    }
+  }
+}
+
+// ─── Update Growth Bar ──────────────────────────────────────────────
+let lastGrowthXP=0;
+function updateGrowthBar(growth){
+  if(!growth)return;
+  const levelEl=document.getElementById('growth-level'),fillEl=document.getElementById('growth-fill');
+  const dotsEl=document.getElementById('week-dots'),statsEl=document.getElementById('growth-stats'),todayEl=document.getElementById('growth-today');
+  if(!levelEl)return;
+  const newXP=growth.allTimeSuccesses;
+  if(lastGrowthXP>0&&newXP>lastGrowthXP){fillEl.classList.add('pulse-glow');setTimeout(()=>fillEl.classList.remove('pulse-glow'),4000);}
+  lastGrowthXP=newXP;
+  levelEl.textContent=growth.level;
+  const pct=Math.round(growth.levelProgress*100);
+  fillEl.style.width=pct+'%';
+  if(growth.levelProgress>0.9&&growth.nextLevel)fillEl.classList.add('pulse-glow');
+  if(todayEl&&growth.days){const today=growth.days[growth.days.length-1];todayEl.textContent=today&&today.total>0?`+${today.total} skills today`:''; }
+  if(growth.days&&dotsEl.children.length===0){for(let i=0;i<growth.days.length;i++){const dot=document.createElement('div');dot.className='week-dot';dotsEl.appendChild(dot);}}
+  if(growth.days){const maxDay=Math.max(1,...growth.days.map(d=>d.total));for(let i=0;i<growth.days.length;i++){const dot=dotsEl.children[i];if(dot){dot.style.height=Math.max(2,(growth.days[i].total/maxDay)*20)+'px';dot.style.background=i===growth.days.length-1?'rgba(100,220,255,0.9)':'rgba(100,180,255,0.6)';}}}
+  statsEl.textContent=`${newXP} XP | ${growth.domains} domains | day ${growth.ageDays}${growth.nextLevel?' > '+growth.nextLevel:''}`;
+}
+
+// ─── Update Skills ──────────────────────────────────────────────────
+const CAP_DEFS=[{key:'gps',label:'GPS'},{key:'voice',label:'VOICE'},{key:'vision',label:'VISION'},{key:'selfcam',label:'SELFCAM'},{key:'memory',label:'MEMORY'},{key:'vault',label:'VAULT'}];
+const prevCaps={};
+function updateSkillsPanel(skills){
+  if(!skills)return;
+  const capsEl=document.getElementById('skills-caps'),feedEl=document.getElementById('skills-feed');
+  if(!capsEl)return;
+  if(capsEl.children.length===0){for(const cap of CAP_DEFS){const el=document.createElement('span');el.id='cap-'+cap.key;capsEl.appendChild(el);}}
+  for(const cap of CAP_DEFS){
+    const el=document.getElementById('cap-'+cap.key);if(!el)continue;
+    const on=!!(skills.capabilities&&skills.capabilities[cap.key]);
+    el.className='cap-badge'+(on?' unlocked':'');
+    el.textContent=(on?'\u2713 ':'\u00b7 ')+cap.label;
+    if(on&&!prevCaps[cap.key]){el.classList.add('just-unlocked');setTimeout(()=>el.classList.remove('just-unlocked'),700);}
+    prevCaps[cap.key]=on;
+  }
+  if(!feedEl||!skills.recent||!skills.recent.length)return;
+  while(feedEl.firstChild)feedEl.removeChild(feedEl.firstChild);
+  for(const s of skills.recent.slice(0,5)){
+    const row=document.createElement('div');row.className='skill-entry';
+    const icon=document.createElement('span');icon.className=s.result==='works'?'skill-icon-works':'skill-icon-fail';icon.textContent=s.result==='works'?'\u2713':'\u2717';
+    const name=document.createElement('span');name.className='skill-name';name.textContent=s.name;
+    row.appendChild(icon);row.appendChild(name);feedEl.appendChild(row);
+  }
+  const total=document.createElement('div');total.className='skills-total';total.textContent=skills.mastered+' mastered \u00b7 '+skills.total+' tried';feedEl.appendChild(total);
+}
+
+// ─── Selfcam ────────────────────────────────────────────────────────
+let lastSelfieTs=0,lastSelfCheckDesc='';
+function timeAgo(ms){const s=Math.round((Date.now()-ms)/1000);if(s<60)return s+'s ago';if(s<3600)return Math.round(s/60)+'m ago';return Math.round(s/3600)+'h ago';}
+function loadSelfie(ts){
+  const img=document.getElementById('eye-img'),none=document.getElementById('eye-none'),frame=document.getElementById('eye-frame');
+  if(!img)return;
+  img.onload=()=>{none.style.display='none';img.style.display='block';frame.classList.add('fresh');setTimeout(()=>frame.classList.remove('fresh'),1300);};
+  img.onerror=()=>{none.style.display='block';img.style.display='none';};
+  img.src='/api/selfie?'+ts;
+}
+async function pollSelfie(){
+  try{const meta=await cachedFetch('/api/selfie-meta',20000);if(!meta||!meta.exists)return;if(meta.ts!==lastSelfieTs){lastSelfieTs=meta.ts;loadSelfie(meta.ts);}const ageEl=document.getElementById('eye-age');if(ageEl&&meta.ts)ageEl.textContent=timeAgo(meta.ts);}catch{}
+}
+setInterval(pollSelfie,30000);setTimeout(pollSelfie,3000);
+
+function updateSelfieDesc(thoughts){
+  if(!thoughts)return;
+  const check=[...thoughts].reverse().find(t=>t.category==='VISION'&&t.text&&t.text.length>10);
+  if(!check||check.text===lastSelfCheckDesc)return;
+  lastSelfCheckDesc=check.text;
+  const descEl=document.getElementById('eye-desc');
+  if(descEl){descEl.textContent=check.text.replace(/^\[I see myself\]\s*/,'').slice(0,140);descEl.style.display='block';}
+}
+
+// ─── Weather + Music display ─────────────────────────────────────────
+function updateWeatherDisplay(weather){
+  const el=document.getElementById('s-weather');if(!el)return;
+  if(!weather){el.textContent='--';return;}
+  const cond=(weather.condition||'').replace(/Clear\/Sunny/i,'Clear');
+  el.textContent=`${cond} ${weather.tempC}\u00b0C`;
+  const cLower=cond.toLowerCase();
+  if(/rain|storm|thunder/.test(cLower))el.style.color='#74b9ff';
+  else if(/clear|sun/.test(cLower))el.style.color='#fdcb6e';
+  else if(/snow/.test(cLower))el.style.color='#dfe6e9';
+  else el.style.color='';
+}
+function updateMusicDisplay(music){
+  const el=document.getElementById('s-music');if(!el)return;
+  if(!music||!music.lastSong){el.textContent='--';return;}
+  el.textContent=`\u266a ${music.lastSong}${music.lastArtist&&music.lastArtist!=='unknown'?' \u2014 '+music.lastArtist:''} (${music.totalSongs} heard)`;
+  // Signal music is active for head-bob
+  state.ambientMusic=true;
+  state.currentBPM=music.bpm||80;
+}
+
+// ─── Sensors ─────────────────────────────────────────────────────────
+function updateSensors(data){
+  if(data.temp){document.getElementById('s-temp').textContent=Math.round(data.temp*9/5+32)+'\u00B0F';}
+  if(data.battery!=null&&data.battery>0){const batEl=document.getElementById('s-battery');batEl.textContent=data.battery+'%';batEl.className=data.battery<20?'sa-val sv-battery-low':'sa-val sv-battery';}
+  if(data.ramFree>0)document.getElementById('s-ram').textContent=data.ramFree+'MB';
+  if(data.light&&data.light.lux>=0){document.getElementById('s-light').textContent=data.light.lux+' lx';const pct=Math.min(100,Math.round(Math.log10(Math.max(1,data.light.lux))/4*100));const bar=document.getElementById('s-lux-bar');if(bar)bar.style.width=pct+'%';state.sensorLux=data.light.lux;}
+  if(data.motion){const el=document.getElementById('s-motion');if(data.motion.isPickedUp||data.motion.isMoving){el.textContent='Moving';el.style.color='#e67e22';state.sensorIsMoving=true;}else if(data.motion.isFaceDown){el.textContent='Face\u2193';el.style.color='#f1c40f';state.sensorIsMoving=false;}else{el.textContent='Still';el.style.color='';state.sensorIsMoving=false;}}
+  if(data.gyro){const g=data.gyro,fmt=v=>(v>=0?'+':'')+v.toFixed(2);document.getElementById('s-gx').textContent=fmt(g.x);document.getElementById('s-gy').textContent=fmt(g.y);document.getElementById('s-gz').textContent=fmt(g.z);document.getElementById('s-gyro-mag').textContent=g.magnitude.toFixed(3);}
+  if(data.magnet){const m=data.magnet,fmt=v=>(v>=0?'+':'')+v.toFixed(1);document.getElementById('s-mx').textContent=fmt(m.x);document.getElementById('s-my').textContent=fmt(m.y);document.getElementById('s-mz').textContent=fmt(m.z);const dirs=['N','NE','E','SE','S','SW','W','NW','N'];document.getElementById('s-compass').textContent=m.heading+'° '+dirs[Math.round(m.heading/45)];}
+  if(data.pressure){document.getElementById('s-pressure').textContent=data.pressure.hpa;document.getElementById('s-altitude').textContent=data.pressure.altitude;}
+  if(data.proximity){const el=document.getElementById('s-proximity');el.textContent=data.proximity.near?'NEAR':data.proximity.cm+'cm';el.style.color=data.proximity.near?'#ff8040':'';}
+  if(data.heartRate){const hrRow=document.getElementById('s-hr-row'),el=document.getElementById('s-heartrate');el.textContent=data.heartRate.bpm>0?data.heartRate.bpm+' bpm':'--';if(hrRow)hrRow.style.opacity=data.heartRate.bpm>0?'1':'0.4';}
+}
+
+// ─── Services + Experiments ──────────────────────────────────────────
+function updateServices(services){
+  if(!services)return;
+  const container=document.getElementById('service-list');
+  const names={watsonMind:'Watson Mind',ollama:'Ollama',macApi:'Mac API',piMonitor:'Pi Monitor',studyDaemon:'Study Daemon'};
+  container.innerHTML='';
+  for(const[key,svc]of Object.entries(services)){
+    const row=document.createElement('div');row.className='service-row';
+    row.innerHTML=`<div class="service-dot ${svc.alive?'dot-green':'dot-red'}"></div><span class="service-name ${svc.alive?'':'service-name-down'}">${names[key]||key}</span>`;
+    container.appendChild(row);
+  }
+}
+function updateExperiments(experiments){
+  if(!experiments)return;
+  const container=document.getElementById('experiment-list');container.innerHTML='';
+  for(const exp of experiments.slice(0,8)){
+    const item=document.createElement('div');item.className='experiment-item';
+    item.innerHTML=`<span class="${exp.result==='works'?'exp-result-works':'exp-result-failed'}">${exp.result}</span> ${escapeHtml(exp.notes||exp.skill)}`;
+    container.appendChild(item);
+  }
+}
+
+// ─── Thought Stream ──────────────────────────────────────────────────
+let lastThoughtTimestamp=0, thoughtCount=0;
+let activeFilter=null;
+const allThoughts=[];
+
+const CATEGORY_COLORS={
+  STUDY:'#9b59b6',CURIOSITY:'#3498db',CURIOSITY_DEEP:'#3498db',
+  EXPERIMENT:'#2ecc71',HARDWARE_EXPLORE:'#1abc9c',SELF_CHECK:'#f1c40f',
+  SENSES:'#e67e22',REFLECTION:'#16a085',SKILL_PRACTICE:'#e91e63',
+  FACE_DESIGN:'#ff6f61',BODY_AWARENESS:'#00bcd4',VISION:'#8e44ad',
+  HEARING:'#2980b9',IDLE_MUSING:'#607d8b',IDLE:'#607d8b',DREAM:'#9b59b6',
+};
+
+function initCatChips(){
+  const container=document.getElementById('cat-chips');
+  const cats=['STUDY','CURIOSITY','EXPERIMENT','VISION','DREAM','SENSES','REFLECTION'];
+  for(const cat of cats){
+    const chip=document.createElement('button');
+    chip.className=`cat-chip chip-${cat}`;
+    chip.textContent=cat;
+    chip.dataset.cat=cat;
+    chip.onclick=()=>toggleCatFilter(cat,chip);
+    container.appendChild(chip);
+  }
+}
+initCatChips();
+
+function toggleCatFilter(cat,chip){
+  if(activeFilter===cat){activeFilter=null;chip.classList.remove('active');}
+  else{document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));activeFilter=cat;chip.classList.add('active');}
+  filterThoughts();
+}
+
+const thoughtSearch=document.getElementById('thought-search');
+thoughtSearch.addEventListener('input',filterThoughts);
+
+function filterThoughts(){
+  const q=thoughtSearch.value.toLowerCase();
+  const stream=document.getElementById('thought-stream');
+  for(const line of stream.querySelectorAll('.thought-line')){
+    const text=(line.dataset.text||'').toLowerCase();
+    const cat=line.dataset.cat||'';
+    const matchQ=!q||text.includes(q);
+    const matchCat=!activeFilter||cat===activeFilter||cat.startsWith(activeFilter);
+    line.classList.toggle('hidden',!(matchQ&&matchCat));
+  }
+}
+
+function appendThought(t){
+  if(t.timestamp<=lastThoughtTimestamp)return;
+  lastThoughtTimestamp=t.timestamp;
+  thoughtCount++;
+  const stream=document.getElementById('thought-stream');
+  const cat=(t.category||'IDLE_MUSING').replace(/[^A-Z_]/g,'');
+  const color=CATEGORY_COLORS[cat]||'#607d8b';
+  const time=new Date(t.timestamp).toTimeString().split(' ')[0];
+  const score=t.score?`\u2605${t.score}`:'';
+
+  const line=document.createElement('div');
+  line.className=`thought-line cat-${cat}`;
+  line.dataset.text=(t.text||'').toLowerCase();
+  line.dataset.cat=cat;
+  line.dataset.ts=t.timestamp;
+  line.innerHTML=`<span class="thought-cat-badge" style="color:${color};border-color:${color}">${cat.slice(0,6)}</span><span class="thought-time">${time}</span><span class="thought-text">${escapeHtml(t.text||'')}</span><span class="thought-score">${score}</span>`;
+  line.title='Click to discuss with Watson';
+  line.onclick=()=>window.open('/chat?thought='+encodeURIComponent(t.text||'')+'&category='+encodeURIComponent(t.category||''),'_blank');
+  stream.appendChild(line);
+  allThoughts.push(t);
+  // prune DOM
+  while(stream.children.length>300)stream.removeChild(stream.children[0]);
+  // auto-scroll only if near bottom
+  const diff=stream.scrollHeight-stream.scrollTop-stream.clientHeight;
+  if(diff<100)stream.scrollTop=stream.scrollHeight;
+  filterThoughts();
+}
+
+function updateThoughts(thoughts){
+  if(!thoughts||thoughts.length===0)return;
+  for(const t of thoughts)appendThought(t);
+}
+
+// ─── Identity Bar ────────────────────────────────────────────────────
+const AMBIENT_ICONS={silence:'quiet',quiet:'soft',ambient:'hum',activity:'active',loud:'LOUD'};
+const AMBIENT_COLORS={silence:'rgba(149,165,166,0.6)',quiet:'rgba(93,173,226,0.6)',ambient:'rgba(46,204,113,0.6)',activity:'rgba(241,196,15,0.8)',loud:'rgba(231,76,60,0.8)'};
+function updateIdentityBar(data){
+  const ageEl=document.getElementById('watson-age');
+  if(ageEl&&data.birthday){const days=Math.ceil((Date.now()-new Date(data.birthday))/86400000);ageEl.textContent=`Day ${days}`;}
+  const uptimeEl=document.getElementById('watson-uptime');
+  if(uptimeEl){const up=Math.round(performance.now()/60000);uptimeEl.textContent=up<60?`${up}m`:`${Math.floor(up/60)}h${up%60}m`;}
+  const chatEl=document.getElementById('last-chat');
+  if(chatEl&&data.lastChatTime>0){const ago=Math.round((Date.now()-data.lastChatTime)/60000);chatEl.textContent=ago<1?'just now':ago<60?`${ago}m ago`:ago<1440?`${Math.floor(ago/60)}h ago`:`${Math.floor(ago/1440)}d ago`;}
+  const moodEl=document.getElementById('mood-badge');
+  if(moodEl&&data.dominantEmotion){moodEl.textContent=data.dominantEmotion;moodEl.style.color=MOOD_COLORS[data.dominantEmotion]||'rgba(100,220,255,0.9)';}
+  const ambientEl=document.getElementById('ambient-badge');
+  if(ambientEl&&data.ambient&&data.ambient.classification!=='unknown'){ambientEl.textContent=AMBIENT_ICONS[data.ambient.classification]||data.ambient.classification;ambientEl.style.color=AMBIENT_COLORS[data.ambient.classification]||'rgba(100,220,255,0.9)';}
+  const faceItem=document.getElementById('face-actor-item'),faceEl=document.getElementById('face-actor-badge');
+  if(faceEl&&data.faceIdentity&&data.faceIdentity.actor){faceEl.textContent='Face: '+data.faceIdentity.actor;faceItem.style.display='flex';}
+}
+
+// ─── Network map ─────────────────────────────────────────────────────
+function updateNetworkMap(services){
+  if(!services)return;
+  const macDot=document.getElementById('net-mac-dot'),piDot=document.getElementById('net-pi-dot');
+  const line1=document.getElementById('net-line-1'),line2=document.getElementById('net-line-2');
+  if(macDot)macDot.className=services.macApi&&services.macApi.alive?'net-dot dot-green':'net-dot dot-red';
+  if(piDot)piDot.className=services.piMonitor&&services.piMonitor.alive?'net-dot dot-green':'net-dot dot-red';
+  if(line1)line1.className=services.macApi&&services.macApi.alive?'net-line net-line-active':'net-line';
+  if(line2)line2.className=services.piMonitor&&services.piMonitor.alive?'net-line net-line-active':'net-line';
+}
+
+// ─── Mood Timeline ───────────────────────────────────────────────────
+function updateMoodTimeline(moodHistory){
+  if(!moodHistory||moodHistory.length===0)return;
+  const strip=document.getElementById('mood-strip');if(!strip)return;
+  const segs=moodHistory.slice(-60);strip.innerHTML='';const seen={};
+  for(const pt of segs){const seg=document.createElement('div');seg.className='mood-segment';seg.style.background=MOOD_COLORS[pt.v]||'rgba(100,100,140,0.3)';seg.setAttribute('data-mood',pt.v);strip.appendChild(seg);seen[pt.v]=true;}
+  const legend=document.getElementById('mood-legend');
+  if(legend){legend.innerHTML='';for(const mood of Object.keys(seen)){const item=document.createElement('span');item.className='mood-legend-item';item.innerHTML=`<span class="mood-legend-dot" style="background:${MOOD_COLORS[mood]||'#666'}"></span>${mood}`;legend.appendChild(item);}}
+}
+
+// ─── Personality Radar ───────────────────────────────────────────────
+function drawPersonalityRadar(personality){
+  if(!personality)return;
+  const pc=document.getElementById('personality-radar');if(!pc)return;
+  const pctx=pc.getContext('2d'),w=pc.width,h=pc.height,cx=w/2,cy=h/2,r=Math.min(cx,cy)-16;
+  const traits=[{key:'curiosity',label:'Curious',color:'#3498db'},{key:'philosophical',label:'Deep',color:'#9b59b6'},{key:'humor',label:'Funny',color:'#f1c40f'},{key:'contrarian',label:'Rebel',color:'#e74c3c'},{key:'emotionalRange',label:'Range',color:'#2ecc71'},{key:'warmth',label:'Warm',color:'#e67e22'}];
+  const n=traits.length,step=(Math.PI*2)/n;
+  pctx.clearRect(0,0,w,h);
+  for(let ring=0.25;ring<=1.0;ring+=0.25){pctx.beginPath();for(let i=0;i<=n;i++){const angle=i*step-Math.PI/2,x=cx+Math.cos(angle)*r*ring,y=cy+Math.sin(angle)*r*ring;i===0?pctx.moveTo(x,y):pctx.lineTo(x,y);}pctx.strokeStyle='rgba(100,100,140,0.15)';pctx.lineWidth=0.5;pctx.stroke();}
+  for(let i=0;i<n;i++){const angle=i*step-Math.PI/2,x=cx+Math.cos(angle)*r,y=cy+Math.sin(angle)*r;pctx.beginPath();pctx.moveTo(cx,cy);pctx.lineTo(x,y);pctx.strokeStyle='rgba(100,100,140,0.2)';pctx.lineWidth=0.5;pctx.stroke();const lx=cx+Math.cos(angle)*(r+11),ly=cy+Math.sin(angle)*(r+11);pctx.fillStyle=traits[i].color;pctx.font='7px monospace';pctx.textAlign='center';pctx.textBaseline='middle';pctx.fillText(traits[i].label,lx,ly);}
+  pctx.beginPath();for(let i=0;i<=n;i++){const idx=i%n,angle=idx*step-Math.PI/2,val=personality[traits[idx].key]||0,x=cx+Math.cos(angle)*r*val,y=cy+Math.sin(angle)*r*val;i===0?pctx.moveTo(x,y):pctx.lineTo(x,y);}pctx.fillStyle='rgba(52,152,219,0.15)';pctx.fill();pctx.strokeStyle='rgba(52,152,219,0.6)';pctx.lineWidth=1.5;pctx.stroke();
+  for(let i=0;i<n;i++){const angle=i*step-Math.PI/2,val=personality[traits[i].key]||0,x=cx+Math.cos(angle)*r*val,y=cy+Math.sin(angle)*r*val;pctx.beginPath();pctx.arc(x,y,2,0,Math.PI*2);pctx.fillStyle=traits[i].color;pctx.fill();}
+}
+
+// ─── Conversations ───────────────────────────────────────────────────
+let lastConvTs=0;
+async function fetchConversations(){
+  try{
+    const data=await cachedFetch('/api/chat-history',15000);
+    const feed=document.getElementById('conv-feed');if(!feed)return;
+    if(!data||!data.conversations||data.conversations.length===0){feed.innerHTML='<div class="conv-empty">No conversations yet</div>';return;}
+    const newest=data.conversations[0]?.timestamp||0;
+    if(newest===lastConvTs)return;
+    lastConvTs=newest;feed.innerHTML='';
+    for(const c of data.conversations.slice().reverse()){
+      const entry=document.createElement('div');entry.className='conv-entry';
+      const ago=Math.round((Date.now()-c.timestamp)/60000);
+      const timeStr=ago<1?'just now':ago<60?`${ago}m ago`:ago<1440?`${Math.floor(ago/60)}h ago`:`${Math.floor(ago/1440)}d ago`;
+      if(c.userMessage){const d=document.createElement('div');d.className='conv-trigger';d.textContent=c.userMessage.substring(0,80);entry.appendChild(d);}
+      if(c.watson){const d=document.createElement('div');d.className='conv-msg';const n=document.createElement('span');n.className='conv-name conv-name-watson';n.textContent='Watson';const t=document.createElement('span');t.className='conv-text';t.textContent=c.watson.substring(0,200);d.appendChild(n);d.appendChild(t);entry.appendChild(d);}
+      const dt=document.createElement('div');dt.className='conv-time';dt.textContent=timeStr;entry.appendChild(dt);
+      feed.appendChild(entry);
+    }
+  }catch{}
+}
+fetchConversations();
+setInterval(fetchConversations,30000);
+
+// ─── Activity Banner ─────────────────────────────────────────────────
+const ACTIVITY_MAP={IDLE:{icon:'&#128564;',label:'Idle'},LISTENING:{icon:'&#128066;',label:'Listening'},THINKING:{icon:'&#129504;',label:'Thinking'},SPEAKING:{icon:'&#128483;',label:'Speaking'},LOOKING:{icon:'&#128065;',label:'Looking'}};
+function updateActivityBanner(activityData,category){
+  const banner=document.getElementById('activity-banner'),iconEl=document.getElementById('activity-icon'),labelEl=document.getElementById('activity-label');
+  if(!banner)return;
+  let act=activityData.activity||'IDLE',detail=activityData.detail||'';
+  if(act==='IDLE'&&category){
+    if(category==='VISION'){act='LOOKING';detail='Taking photo...';}
+    else if(category==='HEARING'){act='LISTENING';detail='Recording...';}
+    else if(category==='SENSES'){act='LOOKING';detail='Sensing...';}
+    else if(category==='STUDY')detail='Studying...';
+    else if(['HARDWARE_EXPLORE','CURIOSITY','EXPERIMENT','SKILL_PRACTICE'].includes(category))detail='Exploring...';
+    else if(category==='REFLECTION')detail='Reflecting...';
+    else if(category==='SELF_CHECK')detail='Self-checking...';
+  }
+  const info=ACTIVITY_MAP[act]||ACTIVITY_MAP.IDLE;
+  banner.className='activity-banner activity-'+act;
+  iconEl.innerHTML=info.icon;
+  labelEl.textContent=detail?`${info.label}: ${detail.substring(0,40)}`:info.label;
+}
+
+// ─── Growth Tab ──────────────────────────────────────────────────────
+function renderGrowthTab(data){
+  if(!data)return;
+  const g=data.growth||{};
+  const stageEl=document.getElementById('gsh-stage');
+  if(stageEl)stageEl.textContent=g.level||'--';
+  // Ring
+  const arc=document.getElementById('gsh-ring-arc'),pctEl=document.getElementById('gsh-ring-pct');
+  if(arc&&g.levelProgress!=null){
+    const circ=213.6,off=circ*(1-g.levelProgress);
+    arc.style.strokeDashoffset=off.toFixed(1);
+    if(pctEl)pctEl.textContent=Math.round(g.levelProgress*100)+'%';
+  }
+  const nextEl=document.getElementById('gsh-next');
+  if(nextEl)nextEl.textContent=g.nextLevel?`${Math.round((g.levelProgress||0)*100)}% toward ${g.nextLevel}`:'Max stage';
+
+  // Domain bars
+  const domainsEl=document.getElementById('domain-bars');
+  if(domainsEl&&data.domains&&data.domains.length){
+    domainsEl.innerHTML='';
+    for(const d of data.domains.slice(0,10)){
+      const pct=Math.min(100,Math.round((d.level||0)/20*100));
+      const row=document.createElement('div');row.className='domain-row';
+      row.innerHTML=`<span class="domain-name">${d.name}</span><div class="domain-track"><div class="domain-fill" style="width:${pct}%"></div></div><span class="domain-level">Lv.${d.level||0}</span>`;
+      domainsEl.appendChild(row);
+    }
+  } else if(domainsEl){domainsEl.innerHTML='<div class="empty-msg">No domain data</div>';}
+
+  // Milestones
+  const milEl=document.getElementById('milestone-list');
+  if(milEl&&data.milestones&&data.milestones.length){
+    milEl.innerHTML='';
+    for(const m of data.milestones.slice(0,10)){
+      const item=document.createElement('div');item.className='milestone-item';
+      const ago=m.timestamp?timeAgo(m.timestamp):'';
+      item.innerHTML=`<div class="milestone-dot"></div><div><div class="milestone-text">${escapeHtml(m.text||m.description||'')}</div><div class="milestone-date">${ago}</div></div>`;
+      milEl.appendChild(item);
+    }
+  }
+
+  // Games
+  const gamesEl=document.getElementById('games-grid');
+  if(gamesEl&&data.games&&data.games.length){
+    gamesEl.innerHTML='';
+    for(const gm of data.games){
+      const trend=gm.trend>0?'up':gm.trend<0?'down':'';
+      const trendIcon=gm.trend>0?'\u2191':gm.trend<0?'\u2193':'\u2192';
+      const card=document.createElement('div');card.className='game-card';
+      card.innerHTML=`<div class="game-name">${escapeHtml(gm.name)}</div><div><span class="game-best">${gm.best||'--'}</span><span class="game-trend ${trend}">${trendIcon}</span></div><div class="game-label">personal best</div>`;
+      gamesEl.appendChild(card);
+    }
+  }
+
+  // Music widget
+  const mwEl=document.getElementById('music-widget-area');
+  if(mwEl&&data.music&&data.music.composition){
+    const m=data.music.composition;
+    mwEl.innerHTML='';
+    const w=document.createElement('div');w.className='music-widget';
+    w.innerHTML=`<div class="music-now"><span class="music-icon">&#127925;</span><div><div class="music-title">${escapeHtml(m.title||'Untitled')}</div><div class="music-meta">Key: ${m.key||'?'} &nbsp;|&nbsp; ${m.tempo||'?'} BPM &nbsp;|&nbsp; ${m.bars||'?'} bars</div></div></div><button class="music-play-btn" onclick="playMusic()">&#9654; Play</button>`;
+    if(data.music.recent&&data.music.recent.length){
+      const list=document.createElement('div');list.className='music-comp-list';list.style.marginTop='8px';
+      for(const c of data.music.recent.slice(0,5)){const item=document.createElement('div');item.className='music-comp-item';item.textContent=`\u266a ${c.title||'Untitled'} (${c.key||'?'})`;list.appendChild(item);}
+      w.appendChild(list);
+    }
+    mwEl.appendChild(w);
+    state.currentComposition=m;
+    state.currentBPM=m.tempo||80;
+  }
+}
+async function playMusic(){
+  try{await fetch('/api/music/play',{method:'POST'});}catch{}
+}
+
+// ─── Memory Tab ──────────────────────────────────────────────────────
+async function loadMemoryTab(){
+  const epEl=document.getElementById('memory-episodes');
+  const peopleEl=document.getElementById('memory-people');
+  const tagsEl=document.getElementById('memory-tags');
+  try{
+    const data=await cachedFetch('/api/memory',10000);
+    if(!data)return;
+    // Episodes
+    if(epEl&&data.episodes&&data.episodes.length){
+      epEl.innerHTML='';
+      for(const ep of data.episodes.slice(0,8)){
+        const card=document.createElement('div');card.className='memory-card';
+        const imp=Math.round((ep.importance||0.5)*100);
+        card.innerHTML=`<div class="mem-type-badge">${ep.type||'episode'}</div><div class="mem-duration">${ep.duration||'?'}</div><div class="mem-importance"><div class="mem-importance-fill" style="width:${imp}%"></div></div><div class="mem-first-event">${escapeHtml(ep.firstEvent||ep.summary||'')}</div>`;
+        epEl.appendChild(card);
+      }
+    } else if(epEl)epEl.innerHTML='<div class="empty-msg">No episodes yet</div>';
+    // People
+    if(peopleEl&&data.people&&data.people.length){
+      peopleEl.innerHTML='';
+      for(const p of data.people){
+        const card=document.createElement('div');card.className='people-card';
+        const topics=(p.topics||[]).slice(0,4).map(t=>`<span class="people-topic">${escapeHtml(t)}</span>`).join('');
+        card.innerHTML=`<div class="people-avatar">${p.name?p.name[0].toUpperCase():'?'}</div><div class="people-info"><div class="people-name">${escapeHtml(p.name||'Unknown')}</div><div class="people-meta">Last seen: ${p.lastSeen?timeAgo(p.lastSeen):'never'}</div><div class="people-topics">${topics}</div></div>`;
+        peopleEl.appendChild(card);
+      }
+    } else if(peopleEl)peopleEl.innerHTML='<div class="empty-msg">No people data</div>';
+    // Tags
+    if(tagsEl&&data.concepts&&data.concepts.length){
+      tagsEl.innerHTML='';
+      for(const c of data.concepts.slice(0,30)){
+        const tag=document.createElement('span');tag.className='tag-item';
+        tag.style.fontSize=Math.max(9,Math.min(14,(c.weight||1)*10))+'px';
+        tag.textContent=c.label||c;
+        tagsEl.appendChild(tag);
+      }
+    } else if(tagsEl)tagsEl.innerHTML='<div class="empty-msg">No concept data</div>';
+  }catch{
+    if(epEl)epEl.innerHTML='<div class="empty-msg">Memory unavailable</div>';
+  }
+}
+
+// ─── Creations Tab ────────────────────────────────────────────────────
+let allCreations=[];
+let creationFilter='all';
+async function loadCreationsTab(){
+  const grid=document.getElementById('creations-grid');
+  try{
+    const data=await cachedFetch('/api/creations',15000);
+    if(!data||!data.creations)return;
+    allCreations=data.creations;
+    renderCreations();
+  }catch{
+    if(grid)grid.innerHTML='<div class="empty-msg">Creations unavailable</div>';
+  }
+}
+function renderCreations(){
+  const grid=document.getElementById('creations-grid');if(!grid)return;
+  const filtered=creationFilter==='all'?allCreations:allCreations.filter(c=>c.type===creationFilter);
+  if(!filtered.length){grid.innerHTML='<div class="empty-msg">No creations in this category yet</div>';return;}
+  grid.innerHTML='';
+  const TYPE_COLORS={poem:'#9b59b6',essay:'#3498db',dream:'#8e44ad',lyric:'#e91e63',art:'#e67e22'};
+  for(const c of filtered){
+    const card=document.createElement('div');card.className='creation-card';
+    const color=TYPE_COLORS[c.type]||'#607d8b';
+    const date=c.createdAt?new Date(c.createdAt).toLocaleDateString():'';
+    card.innerHTML=`<div class="creation-type-tag" style="color:${color}">${c.type||'creation'}</div><div class="creation-title">${escapeHtml(c.title||'Untitled')}</div><div class="creation-preview">${escapeHtml((c.content||'').slice(0,120))}</div><div class="creation-date">${date}</div>`;
+    card.onclick=()=>openCreationModal(c);
+    grid.appendChild(card);
+  }
+}
+// Filter buttons
+document.getElementById('creation-filter').addEventListener('click',e=>{
+  const btn=e.target.closest('.creation-type-btn');if(!btn)return;
+  document.querySelectorAll('.creation-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  creationFilter=btn.dataset.type||'all';
+  renderCreations();
+});
+function openCreationModal(c){
+  document.getElementById('modal-creation-type').textContent=c.type||'';
+  document.getElementById('modal-creation-title').textContent=c.title||'Untitled';
+  document.getElementById('modal-creation-date').textContent=c.createdAt?new Date(c.createdAt).toLocaleDateString():'';
+  document.getElementById('modal-creation-body').textContent=c.content||'';
+  document.getElementById('creation-modal').classList.add('open');
+}
+function closeCreationModal(){document.getElementById('creation-modal').classList.remove('open');}
+
+// ─── Brain Tab ────────────────────────────────────────────────────────
+async function loadBrainTab(){
+  await Promise.all([loadEvoTimeline(),loadHallOfFame(),loadEvoMetrics()]);
+}
+async function loadEvoTimeline(){
+  const el=document.getElementById('evo-timeline');if(!el)return;
+  try{
+    const data=await cachedFetch('/api/evolution-log',30000);
+    if(!data||!data.patches||!data.patches.length){el.innerHTML='<div class="empty-msg">No patches yet</div>';return;}
+    el.innerHTML='';
+    for(const patch of data.patches.slice(0,20)){
+      const entry=document.createElement('div');entry.className='evo-entry';
+      const ts=patch.timestamp?new Date(patch.timestamp).toLocaleString():'';
+      let patchHtml='';
+      if(patch.diff){
+        const lines=(patch.diff||'').split('\n');
+        patchHtml=lines.map(l=>{
+          if(l.startsWith('+'))return`<span class="patch-add">${escapeHtml(l)}</span>`;
+          if(l.startsWith('-'))return`<span class="patch-del">${escapeHtml(l)}</span>`;
+          return`<span class="patch-ctx">${escapeHtml(l)}</span>`;
+        }).join('\n');
+      }
+      entry.innerHTML=`<div class="evo-ts">${ts}</div><div class="evo-file">${escapeHtml(patch.file||'')}</div><div class="evo-desc">${escapeHtml(patch.description||'')}</div>${patchHtml?`<div class="evo-patch"><pre>${patchHtml}</pre></div>`:''}`;
+      if(patchHtml){entry.onclick=()=>entry.classList.toggle('expanded');}
+      el.appendChild(entry);
+    }
+  }catch{el.innerHTML='<div class="empty-msg">Evolution log unavailable</div>';}
+}
+async function loadHallOfFame(){
+  const list=document.getElementById('hof-list');if(!list)return;
+  list.innerHTML='<div class="empty-msg">Loading...</div>';
+  try{
+    const entries=await cachedFetch('/api/hall-of-fame',30000);
+    if(!entries||!entries.length){list.innerHTML='<div class="empty-msg">No hall of fame yet — thoughts scoring 8+ appear here</div>';return;}
+    list.innerHTML='';
+    const SCORE_COLOR=s=>s>=9?'#f1c40f':s>=8?'#2ecc71':'#3498db';
+    for(const e of entries.slice(0,15)){
+      const ago=Math.round((Date.now()-(e.timestamp||0))/60000);
+      const agoStr=ago<60?ago+'m ago':Math.floor(ago/60)+'h ago';
+      const card=document.createElement('div');card.className='hof-card';
+      card.style.borderLeftColor=SCORE_COLOR(e.score);
+      card.innerHTML=`<div class="hof-row"><span class="hof-cat">${e.category||''}</span><span class="hof-score" style="color:${SCORE_COLOR(e.score)}">\u2605 ${e.score}/10</span></div><div class="hof-text">${escapeHtml(e.text||'')}</div><div class="hof-time">${agoStr}</div>`;
+      list.appendChild(card);
+    }
+  }catch{list.innerHTML='<div class="empty-msg">Hall of fame unavailable</div>';}
+}
+function loadEvoMetrics(){
+  const el=document.getElementById('evo-metrics');if(!el)return;
+  el.innerHTML='';
+  const g=state.growth||{};
+  const metrics=[['Growth Level',g.label||'Awakening'],['Total Cycles',(g.cycles||0).toLocaleString()],['Skills Known',g.skills||'--'],['Thoughts Today',g.thoughtsToday||'--']];
+  for(const[label,val]of metrics){
+    const card=document.createElement('div');
+    card.style.cssText='background:rgba(255,255,255,0.03);border:1px solid rgba(100,100,140,0.15);border-radius:6px;padding:8px;text-align:center;';
+    card.innerHTML=`<div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;margin-bottom:2px;">${label}</div><div style="font-size:16px;font-weight:700;color:rgba(241,196,15,0.9);">${val}</div>`;
+    el.appendChild(card);
+  }
+}
+
+// ─── Tab System ───────────────────────────────────────────────────────
+const lazyLoaded=new Set();
+function activateTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>{
+    const id='tab-'+name;
+    p.classList.toggle('active',p.id===id);
+    p.style.display=p.id===id?'block':'none';
+  });
+  // Lazy load
+  const panel=document.getElementById('tab-'+name);
+  if(panel&&panel.dataset.lazy&&!lazyLoaded.has(name)){
+    lazyLoaded.add(name);
+    if(name==='memory')loadMemoryTab();
+    else if(name==='creations')loadCreationsTab();
+    else if(name==='growth'){}// loaded via pollState
+    else if(name==='brain')loadBrainTab();
+  }
+}
+document.getElementById('tab-bar').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab-btn');if(!btn||!btn.dataset.tab)return;
+  activateTab(btn.dataset.tab);
+});
+// Init tab display
+document.querySelectorAll('.tab-panel').forEach((p,i)=>{p.style.display=i===0?'block':'none';});
+
+// ─── Hardware Poll ────────────────────────────────────────────────────
+async function pollHardware(){
+  try{
+    const hw=await cachedFetch('/api/hardware',5000);
+    if(!hw||hw.error)return;
+    const coresEl=document.getElementById('hw-cores');
+    if(coresEl&&hw.cpu&&hw.cpu.cores){let html='';for(const core of hw.cpu.cores){const maxMHz=core.maxMHz||1766,pct=core.online?Math.round((core.freqMHz/maxMHz)*100):0,color=core.cluster==='big'?'#e67e22':'#3498db';html+=`<div class="hw-core" title="cpu${core.core} ${core.freqMHz}MHz"><div class="hw-core-lbl">${core.core}</div><div class="hw-core-fill" style="height:${pct}%;background:${color};"></div></div>`;}coresEl.innerHTML=html;}
+    if(hw.cpu){const lb=document.getElementById('hw-cpu-little'),lv=document.getElementById('hw-cpu-little-val'),bb=document.getElementById('hw-cpu-big'),bv=document.getElementById('hw-cpu-big-val');if(lb)lb.style.width=hw.cpu.littlePct+'%';if(lv)lv.textContent=hw.cpu.littleAvgMHz+'MHz';if(bb)bb.style.width=hw.cpu.bigPct+'%';if(bv)bv.textContent=hw.cpu.bigAvgMHz+'MHz';}
+    if(hw.gpu){const gb=document.getElementById('hw-gpu'),gv=document.getElementById('hw-gpu-val');if(gb)gb.style.width=hw.gpu.utilPct+'%';if(gv)gv.textContent=hw.gpu.clockMHz+'MHz';}
+    if(hw.memory){const rb=document.getElementById('hw-ram'),rv=document.getElementById('hw-ram-val');if(rb){rb.style.width=hw.memory.usedPct+'%';rb.style.background=hw.memory.availableMB<500?'#e74c3c':hw.memory.availableMB<1000?'#e67e22':'#2ecc71';}if(rv)rv.textContent=hw.memory.availableMB+'MB';}
+    if(hw.thermal){const hs=document.getElementById('hw-hotspot');if(hs){const t=hw.thermal,toF=c=>Math.round(c*9/5+32),c=t.hotspot.temp>55?'#e74c3c':t.hotspot.temp>45?'#e67e22':'#2ecc71';hs.style.color=c;hs.textContent=`${t.hotspot.name} ${toF(t.hotspot.temp)}\u00B0F | avg ${toF(t.avgC)}\u00B0F`;}}
+    updateSensors({temp:0,battery:0,ramFree:0,light:hw.light??null,motion:hw.motion??null,gyro:hw.gyro??null,magnet:hw.magnet??null,pressure:hw.pressure??null,proximity:hw.proximity??null});
+  }catch{}
+}
+setInterval(pollHardware,5000);setTimeout(pollHardware,3000);
+
+// ─── Sensors poll ─────────────────────────────────────────────────────
+async function pollSenses(){
+  try{
+    const s=await cachedFetch('/api/senses',8000);
+    if(!s||!s.timestamp)return;
+    const sd={light:s.light??null,gyro:s.gyro??null,magnet:s.magnet??null,pressure:s.pressure??null,proximity:s.proximity??null,heartRate:s.heartRate??null,motion:s.motion?{isMoving:s.motion.state==='MOVING',isFaceDown:s.motion.z!==undefined&&s.motion.z<-8}:null};
+    updateSensors(sd);
+  }catch{}
+}
+setInterval(pollSenses,10000);setTimeout(pollSenses,4000);
+
+// ─── Self Check ────────────────────────────────────────────────────────
+let selfCheckData=null;
+async function pollSelfCheck(){
+  try{
+    const res=await fetch('/api/self-check');
+    if(res.ok){selfCheckData=await res.json();const indicator=document.getElementById('self-check');if(selfCheckData.healthy){indicator.className='self-check-indicator self-check-ok';indicator.innerHTML='&#10003;';}else{indicator.className='self-check-indicator self-check-warn';indicator.innerHTML='&#9888;';}updateSelfCheckPopup();}
+  }catch{}
+}
+function toggleSelfCheck(){document.getElementById('self-check-popup').classList.toggle('visible');}
+function updateSelfCheckPopup(){
+  if(!selfCheckData)return;
+  const popup=document.getElementById('self-check-popup');
+  const fails=selfCheckData.failCount||0;
+  let html=`<div style="margin-bottom:6px;font-weight:700;">Watson Liveness</div><div style="margin-bottom:8px;font-size:10px;color:${fails===0?'#2ecc71':fails<=1?'#e67e22':'#e74c3c'}">${fails===0?'All systems nominal':fails+' issue'+(fails>1?'s':'')+' detected'}</div>`;
+  for(const[name,ok]of Object.entries(selfCheckData.checks||{})){const detail=(selfCheckData.details||{})[name]||'';html+=`<div class="sc-item"><div class="sc-dot ${ok?'sc-ok':'sc-fail'}"></div><div><span style="color:${ok?'var(--text)':'#e74c3c'};font-size:11px;">${name}</span><div style="font-size:9px;color:${ok?'var(--text-faint)':'rgba(231,76,60,0.7)'};margin-top:1px;">${detail}</div></div></div>`;}
+  popup.innerHTML=html;
+}
+setInterval(pollSelfCheck,30000);setTimeout(pollSelfCheck,5000);
+
+// ─── SSE Real-time ────────────────────────────────────────────────────
+function connectSSE(){
+  try{
+    const es=new EventSource('/api/stream');
+    es.onmessage=(e)=>{
+      try{
+        const data=JSON.parse(e.data);
+        if(data.type==='thought')appendThought(data);
+        else if(data.type==='emotion'){state.emotions=data;updateEmotionBars(data);}
+        else if(data.type==='state'){handleStateData(data);}
+      }catch{}
+    };
+    es.onerror=()=>{es.close();setTimeout(connectSSE,5000);};
+  }catch{setTimeout(connectSSE,5000);}
+}
+connectSSE();
+
+// ─── Poll State ────────────────────────────────────────────────────────
+async function pollState(){
+  try{
+    const res=await fetch('/api/state');
+    if(!res.ok)return;
+    const data=await res.json();
+    handleStateData(data);
+  }catch{}
+}
+function handleStateData(data){
+  if(data.category)state.category=data.category;
+  if(data.temp!==undefined)state.temp=data.temp;
+  if(data.battery!==undefined)state.battery=data.battery;
+  if(data.talking!==undefined)state.talking=data.talking;
+  if(data.ramFree!==undefined)state.ramFree=data.ramFree;
+  if(data.ollamaAlive!==undefined)state.ollamaAlive=data.ollamaAlive;
+  if(data.expression!==undefined)state.expression=data.expression;
+  if(data.emotions!==undefined){state.emotions=data.emotions;updateEmotionBars(data.emotions);}
+  if(data.dominantEmotion!==undefined)state.dominantEmotion=data.dominantEmotion;
+  if(data.growth){state.growth=data.growth;updateGrowthBar(data.growth);}
+  if(data.skills)updateSkillsPanel(data.skills);
+  updateSensors({temp:data.temp||0,battery:data.battery||0,ramFree:data.ramFree||0,light:data.light,motion:data.motion});
+  if(data.services){updateServices(data.services);updateNetworkMap(data.services);}
+  if(data.thoughts){updateThoughts(data.thoughts);updateSelfieDesc(data.thoughts);}
+  if(data.experiments)updateExperiments(data.experiments);
+  if(data.activity)updateActivityBanner(data.activity,data.category);
+  updateIdentityBar(data);
+  if(data.personality)drawPersonalityRadar(data.personality);
+  // Dream mode
+  const dreamOverlay=document.getElementById('dream-overlay'),dreamInd=document.getElementById('dream-indicator');
+  if(dreamOverlay&&dreamInd){if(data.dreaming){dreamOverlay.classList.add('active');dreamInd.classList.add('active');if(data.lastDream)dreamInd.textContent='dreaming... '+(data.lastDream.domains||[]).join(' \u00d7 ');}else{dreamOverlay.classList.remove('active');dreamInd.classList.remove('active');}}
+  if(data.history&&data.history.mood)updateMoodTimeline(data.history.mood);
+  if(data.weather){state.weather=data.weather;updateWeatherDisplay(data.weather);}
+  if(data.faceIdentity)state.faceIdentity=data.faceIdentity;
+  if(data.music){state.music=data.music;updateMusicDisplay(data.music);}
+  // Growth tab refresh if active
+  if(lazyLoaded.has('growth'))renderGrowthTab(data);
+  // Proactive toast
+  const toast=document.getElementById('proactive-toast'),proText=document.getElementById('proactive-text');
+  if(toast&&proText&&data.proactive&&data.proactive.message){proText.textContent=data.proactive.message;toast.classList.add('visible');}
+}
+setInterval(pollState,2000);
+pollState();
+
+// ─── Proactive ────────────────────────────────────────────────────────
+function respondToProactive(){document.getElementById('proactive-toast').classList.remove('visible');window.open('/chat','_blank');fetch('/api/proactive/dismiss',{method:'POST'});}
+function dismissProactive(){document.getElementById('proactive-toast').classList.remove('visible');fetch('/api/proactive/dismiss',{method:'POST'});}
+
+// ─── Motivate ─────────────────────────────────────────────────────────
+function openMotivate(){
+  document.getElementById('motivate-overlay').classList.add('open');
+  document.getElementById('mot-temp').textContent=state.temp>0?Math.round(state.temp*9/5+32)+'\u00B0F':'--';
+  document.getElementById('mot-mood').textContent=(state.dominantEmotion||state.category||'idle').toLowerCase();
+  document.getElementById('mot-bat').textContent=state.battery>0?state.battery+'%':'--';
+  loadRecentMotivations();
+}
+function closeMotivate(){document.getElementById('motivate-overlay').classList.remove('open');}
+const MOTIVATE_TYPE_LABELS={THERMAL_SCAN:'Thermal Scan',DIAGNOSTICS:'Diagnostics',SNAPSHOT:'Snapshot',DEEP_REFLECT:'Deep Reflect',DREAM_NOW:'Dream Now',STUDY_BOOST:'Study Boost',SET_GOAL:'Set Goal',SPEAK_THOUGHT:'Speak Thought',ENCOURAGE:'Encourage'};
+async function sendMotivation(type,message){
+  try{
+    const body={type};if(message&&message.trim())body.message=message.trim();
+    const res=await fetch('/api/motivate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(res.ok){const btn=document.getElementById('mbtn-'+type);if(btn){btn.classList.add('sent');setTimeout(()=>btn.classList.remove('sent'),3000);}if(type==='ENCOURAGE')document.getElementById('mot-custom').value='';setTimeout(loadRecentMotivations,800);}
+  }catch{}
+}
+async function loadRecentMotivations(){
+  try{
+    const list=await cachedFetch('/api/motivations',5000);
+    const container=document.getElementById('mot-recent-list');if(!list||!list.length)return;
+    const STATUS_ICONS={pending:'\u23F3',processing:'\u26A1',complete:'\u2713'};
+    const STATUS_COLORS={pending:'rgba(150,165,185,0.5)',processing:'#f1c40f',complete:'#2ecc71'};
+    container.innerHTML='';
+    for(const m of list.slice(-6).reverse()){
+      const ago=Math.round((Date.now()-m.ts)/60000);const agoStr=ago<1?'just now':ago<60?ago+'m ago':Math.floor(ago/60)+'h ago';
+      const row=document.createElement('div');row.className='motivate-recent-item';
+      const iconSpan=document.createElement('span');iconSpan.style.color=STATUS_COLORS[m.status]||'rgba(150,165,185,0.5)';iconSpan.textContent=STATUS_ICONS[m.status]||'\u00B7';
+      const textSpan=document.createElement('span');textSpan.textContent=(MOTIVATE_TYPE_LABELS[m.type]||m.type)+(m.result?' \u2014 '+m.result.slice(0,45):'');
+      const timeSpan=document.createElement('span');timeSpan.style.cssText='margin-left:auto;opacity:0.5;font-size:10px;';timeSpan.textContent=agoStr;
+      row.appendChild(iconSpan);row.appendChild(textSpan);row.appendChild(timeSpan);container.appendChild(row);
+    }
+  }catch{}
+}
+
+// ─── Evolution overlay ────────────────────────────────────────────────
+function openEvolution(){document.getElementById('evolution-overlay').classList.add('open');loadHallOfFame();loadEvoMetrics();}
+function closeEvolution(){document.getElementById('evolution-overlay').classList.remove('open');}
+
+// ─── Voice ────────────────────────────────────────────────────────────
+let _voicesLoaded=false;
+function speakThought(){
+  const text=state.lastThought||'I am Watson. I am thinking about the nature of things.';
+  if(!window.speechSynthesis){alert('Speech not supported');return;}
+  window.speechSynthesis.cancel();
+  const utt=new SpeechSynthesisUtterance(text);
+  utt.pitch=0.62;utt.rate=0.76;utt.volume=1.0;
+  const voices=window.speechSynthesis.getVoices();
+  const deepMale=voices.find(v=>v.lang.startsWith('en')&&(v.name.toLowerCase().includes('male')||v.name.includes('Google UK')||v.name.includes('Google US')))||voices.find(v=>v.lang.startsWith('en'))||voices[0];
+  if(deepMale)utt.voice=deepMale;
+  const prevLabel=anim.label;anim.label='Speaking...';
+  utt.onend=()=>{anim.label=prevLabel;};utt.onerror=()=>{anim.label=prevLabel;};
+  window.speechSynthesis.speak(utt);closeMotivate();
+}
+document.addEventListener('click',()=>{if(!_voicesLoaded&&window.speechSynthesis){window.speechSynthesis.getVoices();_voicesLoaded=true;}},{once:true});
+
+// ─── Custom Expressions ───────────────────────────────────────────────
+async function loadCustomExpressions(){
+  try{
+    const res=await fetch('/api/customizations');
+    if(res.ok){const customs=await res.json();for(const[name,data]of Object.entries(customs)){if(data.params){EXPRESSIONS[name.toUpperCase()]={eyeOpen:data.params.eyeOpen||0.5,eyeNarrow:0,pupilSize:data.params.pupilSize||0.75,mouthCurve:data.params.mouthCurve||0.1,eyebrowAngle:data.params.eyebrowAngle||0,sparkle:!!data.params.sparkle,blushIntensity:data.params.blushIntensity||0,bgColor:data.params.edgeColor?[data.params.edgeColor.r||100,data.params.edgeColor.g||100,data.params.edgeColor.b||200]:[140,80,120],label:name};}}}
+  }catch{}
+}
+loadCustomExpressions();
+
+// ─── Touch on face ───────────────────────────────────────────────────
+canvas.addEventListener('touchstart',()=>{state._prevCategory=state.category;state.category='CURIOSITY';setTimeout(()=>{state.category=state._prevCategory||'IDLE_MUSING';},2000);});
+canvas.addEventListener('click',()=>{state._prevCategory=state.category;state.category='CURIOSITY';setTimeout(()=>{state.category=state._prevCategory||'IDLE_MUSING';},2000);});
+
+// ─── Escape HTML ─────────────────────────────────────────────────────
+function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
+
+// ─── Vision Capture ───────────────────────────────────────────────────
+async function captureAndAnalyze(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const label = document.getElementById('vision-btn-label');
+  const status = document.getElementById('vision-status');
+  label.classList.add('busy');
+  label.textContent = '⏳ Analyzing...';
+  status.textContent = 'Sending to Groq vision...';
   try {
-    const res = await fetch('/api/chat', {
+    const b64 = await fileToBase64(file);
+    const resp = await fetch('/api/vision', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, history: chatHistory.slice(-10) }),
+      body: JSON.stringify({ image: b64, mimeType: file.type || 'image/jpeg' })
     });
-    document.getElementById('typing-indicator').innerHTML = '';
-    if (res.ok) {
-      const data = await res.json();
-      const response = data.response || "I can't think right now.";
-      addChatMsg('wattson', response);
-      chatHistory.push({ role: 'assistant', text: response });
-    } else {
-      addChatMsg('wattson', "My brain isn't responding right now.");
-    }
-  } catch {
-    document.getElementById('typing-indicator').innerHTML = '';
-    addChatMsg('wattson', "Can't connect to my brain.");
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    // Update eye section with captured image + analysis
+    const frame = document.getElementById('eye-frame');
+    const eyeImg = document.getElementById('eye-img');
+    const eyeNone = document.getElementById('eye-none');
+    const eyeDesc = document.getElementById('eye-desc');
+    eyeImg.src = URL.createObjectURL(file);
+    eyeImg.style.display = 'block';
+    eyeNone.style.display = 'none';
+    eyeDesc.textContent = data.analysis;
+    eyeDesc.style.display = 'block';
+    frame.classList.add('fresh');
+    setTimeout(() => frame.classList.remove('fresh'), 1200);
+    document.getElementById('eye-age').textContent = 'just now';
+    const via = data.model && data.model.includes('moondream') ? 'offline' : 'Groq';
+    status.textContent = '\u2713 via ' + via + ' \u2022 ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    status.textContent = '\u2717 ' + e.message;
+  } finally {
+    label.classList.remove('busy');
+    label.textContent = '\uD83D\uDCF7 Analyze Photo';
+    input.value = '';
   }
-
-  sending = false;
-  document.getElementById('send-btn').disabled = false;
-  input.focus();
 }
 
-function addChatMsg(role, text) {
-  const el = document.getElementById('chat-messages');
-  const div = document.createElement('div');
-  div.className = 'msg msg-' + role;
-  div.textContent = text;
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
-function escapeHtml(text) {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// ─── Voice Input ──────────────────────────────────────────────────────
+let _mediaRecorder = null;
+let _audioChunks = [];
+
+async function toggleVoice() {
+  const btn = document.getElementById('voice-btn');
+  const status = document.getElementById('vision-status');
+  if (_mediaRecorder && _mediaRecorder.state === 'recording') {
+    _mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _audioChunks = [];
+    _mediaRecorder = new MediaRecorder(stream);
+    _mediaRecorder.ondataavailable = e => _audioChunks.push(e.data);
+    _mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      btn.classList.remove('recording');
+      btn.textContent = '\uD83C\uDF99';
+      btn.disabled = true;
+      status.textContent = 'Transcribing with Groq Whisper...';
+      try {
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+        const blob = new Blob(_audioChunks, { type: mimeType });
+        const b64 = await blobToBase64(blob);
+        const resp = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: b64, mimeType })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        const preview = data.transcript.slice(0, 70) + (data.transcript.length > 70 ? '...' : '');
+        status.textContent = '\uD83C\uDF99 "' + preview + '"';
+        // Send transcript to Watson via chat API
+        if (data.transcript.trim()) {
+          fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: data.transcript })
+          }).then(r => r.json()).then(d => {
+            if (d.response) status.textContent = '\uD83D\uDCAC ' + d.response.slice(0, 80);
+          }).catch(() => {});
+        }
+      } catch (e) {
+        status.textContent = '\u2717 ' + e.message;
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    _mediaRecorder.start();
+    btn.classList.add('recording');
+    btn.textContent = '\u23F9';
+    status.textContent = 'Recording\u2026 tap \u23F9 to stop';
+  } catch (e) {
+    status.textContent = '\u2717 Mic: ' + e.message;
+  }
 }
 
-// ─── Init ────────────────────────────────────────────────────────────────────
-setInterval(pollState, 3000);
-pollState();
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// ─── Start ────────────────────────────────────────────────────────────
+requestAnimationFrame(draw);
 </script>
 </body>
 </html>
