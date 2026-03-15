@@ -193,6 +193,15 @@ function parseIntent(command) {
 
   if (/take\s+(?:a\s+)?(?:photo|picture|selfie|screenshot)/i.test(c)) return { type: 'photo' };
 
+  // Face change: "change your face", "new face", "look like Morgan Freeman", "change face to Zendaya"
+  const faceMatch = c.match(/(?:change|switch|update|new)\s+(?:your\s+)?face(?:\s+(?:to|like)\s+(.+))?/i)
+    || c.match(/(?:look|be|morph)\s+(?:like|into)\s+(.+)/i)
+    || c.match(/face\s*(?:change|swap|morph|update)/i);
+  if (faceMatch) {
+    const requestedActor = (faceMatch && faceMatch[1]) ? faceMatch[1].trim() : null;
+    return { type: 'face_change', actor: requestedActor };
+  }
+
   return { type: 'unknown', raw: command };
 }
 
@@ -711,6 +720,46 @@ async function executePhoto(thought) {
   return { ok: exists, message: exists ? `Photo saved` : 'Camera failed' };
 }
 
+// ─── Face change executor ───────────────────────────────────────────────────
+
+const FACE_IDENTITY_PATH = '/storage/7000-8000/watson-face-identity.json';
+const FACE_ACTORS = [
+  'Morgan Freeman', 'Idris Elba', 'Scarlett Johansson', 'Keanu Reeves',
+  'Zendaya', 'Denzel Washington', "Lupita Nyong'o", 'Ryan Reynolds',
+  'Viola Davis', 'Chadwick Boseman', 'Priyanka Chopra', 'Meryl Streep',
+  'Anthony Hopkins', 'Cate Blanchett',
+];
+
+async function executeFaceChange(intent, thought) {
+  let actor = intent.actor;
+
+  if (actor) {
+    // Try to match requested actor to known list (fuzzy)
+    const requested = actor.toLowerCase();
+    const match = FACE_ACTORS.find(a => a.toLowerCase().includes(requested) || requested.includes(a.toLowerCase().split(' ')[0]));
+    actor = match || actor; // Use match if found, otherwise use as-is
+  } else {
+    // Random actor
+    actor = FACE_ACTORS[Math.floor(Math.random() * FACE_ACTORS.length)];
+  }
+
+  const faceData = {
+    actor,
+    timestamp: Date.now(),
+    mood: 'confident',
+    source: 'discord-command',
+  };
+
+  try {
+    fs.writeFileSync(FACE_IDENTITY_PATH, JSON.stringify(faceData, null, 2), 'utf8');
+    await reportProgress(`🎭 Face changed → ${actor}`, thought);
+    fire('termux-tts-speak', ['-r', '0.9', `Changing my face to ${actor}`]);
+    return { ok: true, message: `🎭 Changed my face to ${actor}` };
+  } catch (e) {
+    return { ok: false, message: `Couldn't change face: ${e.message}` };
+  }
+}
+
 // ─── Command dispatcher ─────────────────────────────────────────────────────
 
 async function executeCommand(command, thought, callOllama, config) {
@@ -719,11 +768,12 @@ async function executeCommand(command, thought, callOllama, config) {
 
   let result;
   switch (intent.type) {
-    case 'music':    result = await executeMusic(intent, thought, config, callOllama); break;
-    case 'open_app': result = await executeOpenApp(intent, thought); break;
-    case 'speak':    result = await executeSpeak(intent, thought); break;
-    case 'volume':   result = await executeVolume(intent); break;
-    case 'photo':    result = await executePhoto(thought); break;
+    case 'music':       result = await executeMusic(intent, thought, config, callOllama); break;
+    case 'open_app':    result = await executeOpenApp(intent, thought); break;
+    case 'speak':       result = await executeSpeak(intent, thought); break;
+    case 'volume':      result = await executeVolume(intent); break;
+    case 'photo':       result = await executePhoto(thought); break;
+    case 'face_change': result = await executeFaceChange(intent, thought); break;
     default:
       result = { ok: false, message: `Don't know how to do: "${command}"` };
   }
